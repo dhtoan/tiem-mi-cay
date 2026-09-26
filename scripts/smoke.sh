@@ -17,6 +17,7 @@ HEALTH="$(curl -fsS "$BASE/api/health")"
 test "$(printf '%s' "$HEALTH" | json_field ok)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field db)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field authSchema)" = "true"
+test "$(printf '%s' "$HEALTH" | json_field version)" = "2026.09.26-auth3"
 
 echo "[2/8] public game"
 curl -fsS "$BASE/" -o "$TMP/index.html"
