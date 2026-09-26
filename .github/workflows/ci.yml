@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm install
+
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Production build
+        run: npm run build
+
+      - name: Apply local D1 migrations
+        run: npm run db:local
+
+      - name: Start local Worker
+        run: |
+          npx wrangler dev --local --port 8787 > /tmp/micay-wrangler.log 2>&1 &
+          echo $! > /tmp/micay-wrangler.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/api/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/micay-wrangler.log
+          exit 1
+
+      - name: Smoke test API and game
+        run: npm run test:smoke
+
+      - name: Wrangler log on failure
+        if: failure()
+        run: cat /tmp/micay-wrangler.log || true
