@@ -15,10 +15,16 @@ json_field() {
 echo "[1/8] health"
 HEALTH="$(curl -fsS "$BASE/api/health")"
 test "$(printf '%s' "$HEALTH" | json_field ok)" = "true"
+test "$(printf '%s' "$HEALTH" | json_field db)" = "true"
+test "$(printf '%s' "$HEALTH" | json_field authSchema)" = "true"
 
 echo "[2/8] public game"
 curl -fsS "$BASE/" -o "$TMP/index.html"
 grep -q 'Tiệm Mì Cay' "$TMP/index.html"
+
+echo "[2b/8] guest cloud save"
+GUEST_SAVE="$(curl -fsS "$BASE/api/save")"
+test "$(printf '%s' "$GUEST_SAVE" | json_field authenticated)" = "false"
 
 echo "[3/8] register"
 REG_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2],displayName:"CI Test"}))' "$SMOKE_USER" "$SMOKE_PASS")"
