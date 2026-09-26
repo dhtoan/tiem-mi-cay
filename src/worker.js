@@ -5,15 +5,17 @@ const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
 const AUTH_COOKIE = 'micay_session';
-const USER_RE = /^[a-z0-9][a-z0-9_]{2,23}$/;
+const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const PBKDF2_ITER = 120000;
 const SAVE_MAX_BYTES = 180 * 1024;
+const DEFAULT_ALLOWED_HOSTS = new Set(['tiem-mi-cay.aunomay.workers.dev']);
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     try {
+      if (!isAllowedHost(url, env)) return blockedHost(url);
       if (url.pathname.startsWith('/api/')) {
         const response = await routeApi(request, env, url);
         return withApiHeaders(response);
@@ -406,7 +408,7 @@ async function authRegister(request, env, url) {
   const username = normalizeUsername(b.username);
   const password = typeof b.password === 'string' ? b.password : '';
   const displayName = cleanText(b.displayName || username, MAX_NAME).replace(/[<>]/g, '') || username;
-  if (!username) return json({ error: 'Tên đăng nhập cần 3–24 ký tự: chữ thường, số hoặc dấu gạch dưới.' }, 400);
+  if (!username) return json({ error: 'Tên đăng nhập cần 3–32 ký tự và chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.' }, 400);
   if (password.length < 8 || password.length > 128) return json({ error: 'Mật khẩu cần từ 8 đến 128 ký tự.' }, 400);
 
   const exists = await env.DB.prepare('SELECT 1 FROM accounts WHERE username=? COLLATE NOCASE').bind(username).first();
@@ -462,8 +464,8 @@ async function authLogout(request, env, url) {
 async function authMe(request, env) {
   if (request.method !== 'GET') return methodNotAllowed('GET');
   const user = await sessionUser(env.DB, request);
-  if (!user) return json({ error: 'Chưa đăng nhập.' }, 401);
-  return json({ ok: true, user: publicUser(user) });
+  if (!user) return json({ ok: true, authenticated: false, user: null });
+  return json({ ok: true, authenticated: true, user: publicUser(user) });
 }
 
 async function cloudSave(request, env, url) {
@@ -552,7 +554,7 @@ function publicUser(row) {
 }
 
 function normalizeUsername(v) {
-  const s = String(v || '').trim().toLowerCase();
+  const s = String(v || '').normalize('NFKC').trim().toLocaleLowerCase('vi-VN').replace(/\s+/g, '_');
   return USER_RE.test(s) ? s : '';
 }
 
@@ -622,6 +624,32 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
+function configuredHosts(env) {
+  const extra = String(env?.ALLOWED_HOSTS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_HOSTS, ...extra]);
+}
+
+function isAllowedHost(url, env) {
+  const host = url.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+  return configuredHosts(env).has(host);
+}
+
+function blockedHost(url) {
+  const body = url.pathname.startsWith('/api/')
+    ? JSON.stringify({ error: 'Bản triển khai này không được cấp phép cho hostname hiện tại.' })
+    : '<!doctype html><meta charset="utf-8"><title>Tiệm Mì Cay</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#fff3f0;color:#4a2a2a}main{max-width:560px;padding:28px;text-align:center}</style><main><h1>Tiệm Mì Cay</h1><p>Bản triển khai này không được cấp phép cho hostname hiện tại.</p></main>';
+  return new Response(body, {
+    status: 403,
+    headers: {
+      'Content-Type': url.pathname.startsWith('/api/') ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY'
+    }
+  });
+}
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -635,6 +663,9 @@ function withApiHeaders(response) {
   h.set('X-Content-Type-Options', 'nosniff');
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  h.set('Cross-Origin-Resource-Policy', 'same-origin');
+  h.set('X-Frame-Options', 'DENY');
+  h.set('X-Robots-Tag', 'noarchive, nosnippet');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
 }
 
@@ -644,7 +675,10 @@ function withSiteHeaders(response) {
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
-  h.set('Content-Security-Policy', "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self'");
+  h.set('Cross-Origin-Resource-Policy', 'same-origin');
+  h.set('X-Frame-Options', 'DENY');
+  h.set('X-Robots-Tag', 'noarchive, nosnippet');
+  h.set('Content-Security-Policy', "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
 }
 
