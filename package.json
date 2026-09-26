@@ -1,0 +1,25 @@
+{
+  "name": "tiem-mi-cay",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/worker.js",
+    "build": "npm run check",
+    "dev": "wrangler dev --local",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "db:remote": "wrangler d1 migrations apply DB --remote",
+    "test:smoke": "bash scripts/smoke.sh",
+    "deploy": "npm run db:remote && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.141.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "D1 database for accounts, cloud saves, leaderboards, challenges and social game data."
+      }
+    }
+  }
+}
