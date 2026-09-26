@@ -4,6 +4,7 @@ const CHAL_DURATION_MS = 30 * 60 * 1000;
 const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']);
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
+const APP_VERSION = '2026.09.26-auth3';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -406,10 +407,10 @@ async function healthCheck(env) {
   try {
     await ensureAuthSchema(env.DB);
     const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('accounts','sessions','cloud_saves')").first();
-    return json({ ok: true, service: 'tiem-mi-cay', day: vnDate(), db: true, authSchema: Number(row?.n || 0) === 3 });
+    return json({ ok: true, service: 'tiem-mi-cay', version: APP_VERSION, day: vnDate(), db: true, authSchema: Number(row?.n || 0) === 3, authHash: 'sha256-salted-v2' });
   } catch (error) {
     console.error('Health/D1 error', error);
-    return json({ ok: false, service: 'tiem-mi-cay', day: vnDate(), db: false, authSchema: false }, 503);
+    return json({ ok: false, service: 'tiem-mi-cay', version: APP_VERSION, day: vnDate(), db: false, authSchema: false }, 503);
   }
 }
 
@@ -475,14 +476,15 @@ async function authRegister(request, env, url) {
   if (exists) return json({ error: 'Tên đăng nhập đã được sử dụng.' }, 409);
 
   const salt = randomHex(16);
-  const passwordHash = await hashPassword(password, salt, PBKDF2_ITER);
+  const passwordIterations = 0;
+  const passwordHash = await hashPasswordFast(password, salt);
   const now = Date.now();
   const accountId = randomHex(16);
   try {
     await env.DB.prepare(`
       INSERT INTO accounts(id,username,display_name,password_hash,password_salt,password_iterations,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?)
-    `).bind(accountId, username, displayName, passwordHash, salt, PBKDF2_ITER, now, now).run();
+    `).bind(accountId, username, displayName, passwordHash, salt, passwordIterations, now, now).run();
   } catch (e) {
     console.error('Auth register insert failed', e);
     if (String(e).toLowerCase().includes('unique')) return json({ error: 'Tên đăng nhập đã được sử dụng.' }, 409);
@@ -506,7 +508,13 @@ async function authLogin(request, env, url) {
     FROM accounts WHERE username=? COLLATE NOCASE
   `).bind(username).first();
   if (!row) return json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng.' }, 401);
-  const got = await hashPassword(password, row.password_salt, Number(row.password_iterations || PBKDF2_ITER));
+  const storedIterations = Number(row.password_iterations);
+  let got;
+  if (Number.isFinite(storedIterations) && storedIterations > 0) {
+    got = await hashPassword(password, row.password_salt, storedIterations);
+  } else {
+    got = await hashPasswordFast(password, row.password_salt);
+  }
   if (!timingSafeEqual(got, row.password_hash)) return json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng.' }, 401);
   return issueSession(env.DB, request, row, 200);
 }
@@ -668,6 +676,12 @@ function hexBytes(hex) {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
+}
+
+async function hashPasswordFast(password, saltHex) {
+  const data = new TextEncoder().encode('micay-auth-v2\0' + saltHex + '\0' + password);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf), x => x.toString(16).padStart(2, '0')).join('');
 }
 
 async function hashPassword(password, saltHex, iterations) {
