@@ -52,7 +52,12 @@ curl -fsS "$BASE/api/prank?id=$PID" >/dev/null
 echo "[8/8] logout"
 OUT="$(curl -fsS -b "$COOKIE" -c "$COOKIE" -H 'content-type: application/json' --data-binary '{}' "$BASE/api/auth/logout")"
 test "$(printf '%s' "$OUT" | json_field ok)" = "true"
-CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" "$BASE/api/auth/me")"
-test "$CODE" = "401"
+ME2="$(curl -fsS -b "$COOKIE" "$BASE/api/auth/me")"
+test "$(printf '%s' "$ME2" | json_field authenticated)" = "false"
+
+echo "[security] headers and host lock"
+node -e 'fetch("http://127.0.0.1:8787/").then(r=>{const xf=r.headers.get("x-frame-options"),corp=r.headers.get("cross-origin-resource-policy"),csp=r.headers.get("content-security-policy")||"";if(xf!=="DENY"||corp!=="same-origin"||!csp.includes("frame-ancestors")||!csp.includes("none")){console.error({xf,corp,csp});process.exit(1)}})'
+CODE="$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: copied-game.example' "$BASE/")"
+test "$CODE" = "403"
 
 echo "Smoke tests passed."
