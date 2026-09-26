@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#5A2334">
 <meta name="description" content="Game quản lý tiệm mì cay: nhập hàng, nấu mì đúng cấp cay, chiều khách và lên cấp quán.">
+<meta name="author" content="Aunomay LLC">
+<meta name="copyright" content="Aunomay LLC">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2020,9 +2022,9 @@ const TERMS_HTML=`<h3>1. Về trò chơi</h3><p>Tiệm Mì Cay là game nấu m�
 <h3>5. Thông tin gửi lên máy chủ</h3><p>Game không hỏi họ tên, số điện thoại hay email. Sau mỗi ngày bán, game gửi lên bảng xếp hạng những thông tin sau:</p><ul><li>mã quán ngẫu nhiên và tên quán bạn đặt;</li><li>tổng lãi, số ngày, số tô, cấp quán, điểm sao;</li><li>thời điểm gửi.</li></ul><p>Tên quán và thành tích này hiện công khai trên bảng xếp hạng.</p><p>Khi thi Giải mì, game gửi mã quán, tên quán và kết quả lượt thi; tên quán và điểm hiện trên bảng Giải mì. Khi chọc quán khác, game gửi mã quán của bạn và của quán nhận, quán nhận thấy tên quán bạn. Tắt Nhận quà từ quán khác trong Cài đặt thì không quán nào gửi được cho bạn.</p><p>Máy chủ chỉ đếm tổng số lượt chơi mỗi ngày. Địa chỉ IP chỉ được giữ tạm khoảng 10 phút để chặn gửi điểm dồn dập, không ghi lại. Trang game chạy qua Cloudflare và tải phông chữ từ Google Fonts. Hai dịch vụ này có thể nhận địa chỉ IP của bạn theo chính sách riêng của họ.</p><p>Khi quán trả lời đánh giá, nội dung đánh giá và tin nhắn của quán được gửi tới một dịch vụ AI bên ngoài để tạo câu khách đáp lại. Đừng viết thông tin cá nhân vào tin nhắn.</p>
 <h3>6. Tên quán</h3><p>Không đặt tên quán thô tục, xúc phạm người khác, liên quan chính trị, quảng cáo hay lừa đảo. Không dùng thông tin cá nhân thật như họ tên đầy đủ, số điện thoại, địa chỉ. Tên vi phạm có thể bị ẩn hoặc xóa khỏi bảng xếp hạng.</p>
 <h3>7. Chơi công bằng</h3><p>Không dùng công cụ gian lận, sửa bản lưu, can thiệp mã game hay tấn công máy chủ. Thành tích bất thường sẽ bị ẩn hoặc xóa khỏi bảng xếp hạng mà không báo trước. Bản lưu bị sửa tay sẽ không dùng được.</p>
-<h3>8. Bản chính thức và bản quyền</h3><p>Hình ảnh, âm thanh và mã nguồn của game do tiệm làm hoặc được phép sử dụng. Nhạc nền của Kevin MacLeod dùng theo giấy phép CC BY 4.0. Không sao chép hay đăng lại game ở nơi khác khi chưa được phép.</p>
+<h3>8. Bản chính thức và bản quyền</h3><p>Tiệm Mì Cay được Aunomay LLC phát hành và vận hành. Các thành phần gốc của game, bao gồm mã nguồn, giao diện và nội dung do Aunomay tạo ra, thuộc Aunomay LLC hoặc được Aunomay sử dụng hợp pháp. Tài sản của bên thứ ba tiếp tục tuân theo giấy phép riêng; nhạc nền của Kevin MacLeod được sử dụng theo giấy phép CC BY 4.0. Không sao chép, phân phối hoặc đăng lại game khi chưa có sự cho phép của Aunomay LLC.</p>
 <h3>9. Thay đổi và gián đoạn</h3><p>Game được cung cấp miễn phí và nguyên trạng. Tiệm có thể cập nhật, cân chỉnh, tạm ngưng game hoặc làm mới bảng xếp hạng bất cứ lúc nào, và không bảo đảm game luôn chạy không lỗi. Khi điều khoản thay đổi, game sẽ hỏi bạn đồng ý lại trước khi chơi tiếp.</p>
-<h3>10. Liên hệ</h3><p>Góp ý, báo lỗi, hoặc muốn xóa tên quán khỏi bảng xếp hạng, gửi email tới <a href="mailto:haunexd@gmail.com">haunexd@gmail.com</a>.</p>`;
+<h3>10. Liên hệ</h3><p>Góp ý, báo lỗi, yêu cầu hỗ trợ hoặc muốn xóa tên quán khỏi bảng xếp hạng, vui lòng liên hệ Aunomay tại <a href="mailto:support@aunomay.com">support@aunomay.com</a>.</p><p>© Aunomay LLC. All rights reserved.</p>`;
 // thẻ điều khoản: ô đồng ý và hai nút nằm dưới đáy thẻ, đánh dấu đồng ý rồi mới bấm được nút vào quán
 function termsDlg(next){
   $('card').innerHTML=`<h2>Điều khoản chơi</h2><p class="note">Cập nhật ngày ${TERMS_DATE}. Đọc xong, đánh dấu đồng ý để vào quán nha.</p><div class="tbody">${TERMS_HTML}</div>
@@ -3499,10 +3501,10 @@ if(/^(localhost|127\.0\.0\.1|example\.test)$/.test(location.hostname))window.__d
 <dialog id="cloudAccountDlg">
   <div class="caBox">
     <div class="caBtns"><h2>Tài khoản & Cloud Save</h2><button id="caClose" class="caAlt caClose" type="button">Đóng</button></div>
-    <p id="caIntro">Đăng nhập để tiếp tục tiệm trên thiết bị khác. Game vẫn lưu local kể cả khi chưa đăng nhập.</p>
+    <p id="caIntro">Đăng nhập để tiếp tục tiệm trên thiết bị khác. Tên đăng nhập có thể dùng chữ tiếng Việt, số, dấu chấm, gạch dưới hoặc gạch ngang. Game vẫn lưu local khi chưa đăng nhập.</p>
     <div id="caGuest">
       <div class="caGrid">
-        <input id="caUserInput" autocomplete="username" maxlength="24" placeholder="Tên đăng nhập (3–24 ký tự)">
+        <input id="caUserInput" autocomplete="username" maxlength="32" placeholder="Tên đăng nhập (3–32 ký tự)">
         <input id="caPassInput" type="password" autocomplete="current-password" maxlength="128" placeholder="Mật khẩu (tối thiểu 8 ký tự)">
       </div>
       <div class="caBtns">
@@ -3528,8 +3530,8 @@ let user=null, revision=0, timer=null, busy=false;
 const status=t=>{$c('caStatus').textContent=t||''};
 const api=async(path,opt={})=>{try{const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});let j={};try{j=await r.json()}catch{}return {ok:r.ok,status:r.status,j}}catch(e){return {ok:false,status:0,j:{error:'Không kết nối được máy chủ.'}}}};
 function render(){const signed=!!user;$c('caGuest').hidden=signed;$c('caSigned').hidden=!signed;$c('caUser').textContent=signed?(user.displayName||user.username):'';$c('cloudAccountBtn').textContent=signed?'☁️ '+(user.displayName||user.username):'☁️ Tài khoản'}
-async function me(){const r=await api('/api/auth/me',{method:'GET',headers:{}});user=r.ok?r.j.user:null;render();if(user){const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}}
-async function auth(mode){if(busy)return;busy=true;status('Đang xử lý…');const username=$c('caUserInput').value.trim().toLowerCase(),password=$c('caPassInput').value;const r=await api('/api/auth/'+mode,{method:'POST',body:JSON.stringify({username,password,displayName:username})});busy=false;if(!r.ok){status(r.j.error||'Không thực hiện được.');return}user=r.j.user;revision=0;render();status(mode==='register'?'Đã tạo tài khoản. Có thể lưu tiến trình lên cloud.':'Đăng nhập thành công.');const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}
+async function me(){const r=await api('/api/auth/me',{method:'GET',headers:{}});user=r.ok&&r.j&&r.j.authenticated?r.j.user:null;render();if(user){const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}}
+async function auth(mode){if(busy)return;const raw=$c('caUserInput').value.normalize('NFKC').trim();const username=raw.toLocaleLowerCase('vi-VN').replace(/\s+/g,'_'),password=$c('caPassInput').value;const okName=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u.test(username);if(!okName){status('Tên đăng nhập cần 3–32 ký tự; chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.');return}if(password.length<8||password.length>128){status('Mật khẩu cần từ 8 đến 128 ký tự.');return}busy=true;status('Đang xử lý…');const r=await api('/api/auth/'+mode,{method:'POST',body:JSON.stringify({username,password,displayName:raw||username})});busy=false;if(!r.ok){status(r.j.error||'Không thực hiện được.');return}user=r.j.user;revision=0;render();status(mode==='register'?'Đã tạo tài khoản. Có thể lưu tiến trình lên cloud.':'Đăng nhập thành công.');const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}
 async function upload(silent=false){if(!user||busy)return;const save=localStorage.getItem(KEY);if(!save){if(!silent)status('Chưa có bản lưu local.');return}busy=true;if(!silent)status('Đang lưu lên cloud…');const r=await api('/api/save',{method:'PUT',body:JSON.stringify({save,revision,clientUpdatedAt:Date.now()})});busy=false;if(r.ok){revision=Number(r.j.revision||revision+1);if(!silent)status('Đã lưu lên cloud.')}else if(r.status===409){revision=Number(r.j.revision||revision);status('Cloud có bản mới hơn. Hãy tải cloud về hoặc thử lại sau khi kiểm tra.')}else if(!silent)status(r.j.error||'Lưu cloud thất bại.')}
 async function download(){if(!user||busy)return;busy=true;status('Đang tải bản cloud…');const r=await api('/api/save',{method:'GET',headers:{}});busy=false;if(!r.ok){status(r.j.error||'Không tải được cloud.');return}revision=Number(r.j.revision||0);if(!r.j.save){status('Tài khoản chưa có bản lưu cloud.');return}if(!confirm('Thay bản lưu trên thiết bị này bằng bản cloud? Trang sẽ tải lại.')){status('Đã hủy.');return}localStorage.setItem(KEY,r.j.save);location.reload()}
 async function logout(){if(busy)return;busy=true;await api('/api/auth/logout',{method:'POST',body:'{}'});busy=false;user=null;revision=0;render();status('Đã đăng xuất. Bản local vẫn được giữ trên thiết bị.')}
@@ -3543,6 +3545,15 @@ $c('caDownload').addEventListener('click',download);
 $c('caLogout').addEventListener('click',logout);
 $c('cloudAccountDlg').addEventListener('click',e=>{if(e.target===$c('cloudAccountDlg'))$c('cloudAccountDlg').close()});
 me();
+})();
+</script><script id="copyGuardScript">
+(()=>{
+  const blocked=e=>{
+    if(e.type==='contextmenu' && (e.target.closest('input,textarea,[contenteditable="true"]'))) return;
+    if((e.ctrlKey||e.metaKey) && ['u','s'].includes(String(e.key).toLowerCase())) e.preventDefault();
+  };
+  addEventListener('contextmenu',blocked,{capture:true});
+  addEventListener('keydown',blocked,{capture:true});
 })();
 </script><script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}</script></body>
 </html>
