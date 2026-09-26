@@ -10,6 +10,8 @@ const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const PBKDF2_ITER = 120000;
 const SAVE_MAX_BYTES = 180 * 1024;
 const DEFAULT_ALLOWED_HOSTS = new Set(['tiem-mi-cay.aunomay.workers.dev']);
+let authSchemaReady = false;
+let authSchemaInit = null;
 
 export default {
   async fetch(request, env) {
@@ -35,7 +37,7 @@ export default {
 async function routeApi(request, env, url) {
   if (!env.DB) return json({ error: 'Database chưa được cấu hình.' }, 503);
   const path = url.pathname.replace(/\/+$/, '');
-  if (path === '/api/health') return json({ ok: true, service: 'tiem-mi-cay', day: vnDate() });
+  if (path === '/api/health') return healthCheck(env);
   if (path === '/api/lb') return leaderboard(request, env, url);
   if (path === '/api/chal') return challenge(request, env, url);
   if (path === '/api/prank') return prank(request, env, url);
@@ -400,7 +402,59 @@ async function touchPlayer(db, id, name, level, now) {
 }
 
 
+async function healthCheck(env) {
+  try {
+    await ensureAuthSchema(env.DB);
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('accounts','sessions','cloud_saves')").first();
+    return json({ ok: true, service: 'tiem-mi-cay', day: vnDate(), db: true, authSchema: Number(row?.n || 0) === 3 });
+  } catch (error) {
+    console.error('Health/D1 error', error);
+    return json({ ok: false, service: 'tiem-mi-cay', day: vnDate(), db: false, authSchema: false }, 503);
+  }
+}
+
+async function ensureAuthSchema(db) {
+  if (authSchemaReady) return;
+  if (!authSchemaInit) {
+    authSchemaInit = db.batch([
+      db.prepare(`CREATE TABLE IF NOT EXISTS accounts (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        display_name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        password_salt TEXT NOT NULL,
+        password_iterations INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL
+      )`),
+      db.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id)'),
+      db.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)'),
+      db.prepare(`CREATE TABLE IF NOT EXISTS cloud_saves (
+        account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+        save_data TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        client_updated_at INTEGER,
+        updated_at INTEGER NOT NULL
+      )`)
+    ]).then(() => {
+      authSchemaReady = true;
+    }).catch(error => {
+      authSchemaInit = null;
+      throw error;
+    });
+  }
+  await authSchemaInit;
+}
+
 async function authRegister(request, env, url) {
+  await ensureAuthSchema(env.DB);
   if (request.method !== 'POST') return methodNotAllowed('POST');
   if (!sameOrigin(request, url)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
   const b = await bodyJson(request);
@@ -411,7 +465,13 @@ async function authRegister(request, env, url) {
   if (!username) return json({ error: 'Tên đăng nhập cần 3–32 ký tự và chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.' }, 400);
   if (password.length < 8 || password.length > 128) return json({ error: 'Mật khẩu cần từ 8 đến 128 ký tự.' }, 400);
 
-  const exists = await env.DB.prepare('SELECT 1 FROM accounts WHERE username=? COLLATE NOCASE').bind(username).first();
+  let exists;
+  try {
+    exists = await env.DB.prepare('SELECT 1 FROM accounts WHERE username=? COLLATE NOCASE').bind(username).first();
+  } catch (error) {
+    console.error('Auth register lookup failed', error);
+    return json({ error: 'Database tài khoản chưa sẵn sàng. Vui lòng thử lại sau vài giây.', code: 'AUTH_DB_NOT_READY' }, 503);
+  }
   if (exists) return json({ error: 'Tên đăng nhập đã được sử dụng.' }, 409);
 
   const salt = randomHex(16);
@@ -424,12 +484,15 @@ async function authRegister(request, env, url) {
       VALUES(?,?,?,?,?,?,?,?)
     `).bind(accountId, username, displayName, passwordHash, salt, PBKDF2_ITER, now, now).run();
   } catch (e) {
-    return json({ error: 'Không thể tạo tài khoản với tên này.' }, 409);
+    console.error('Auth register insert failed', e);
+    if (String(e).toLowerCase().includes('unique')) return json({ error: 'Tên đăng nhập đã được sử dụng.' }, 409);
+    return json({ error: 'Không thể tạo tài khoản lúc này. Vui lòng thử lại.', code: 'AUTH_REGISTER_FAILED' }, 503);
   }
   return issueSession(env.DB, request, { id: accountId, username, display_name: displayName }, 201);
 }
 
 async function authLogin(request, env, url) {
+  await ensureAuthSchema(env.DB);
   if (request.method !== 'POST') return methodNotAllowed('POST');
   if (!sameOrigin(request, url)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
   const b = await bodyJson(request);
@@ -449,6 +512,7 @@ async function authLogin(request, env, url) {
 }
 
 async function authLogout(request, env, url) {
+  await ensureAuthSchema(env.DB);
   if (request.method !== 'POST') return methodNotAllowed('POST');
   if (!sameOrigin(request, url)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
   const raw = cookieValue(request.headers.get('Cookie'), AUTH_COOKIE);
@@ -462,6 +526,7 @@ async function authLogout(request, env, url) {
 }
 
 async function authMe(request, env) {
+  await ensureAuthSchema(env.DB);
   if (request.method !== 'GET') return methodNotAllowed('GET');
   const user = await sessionUser(env.DB, request);
   if (!user) return json({ ok: true, authenticated: false, user: null });
@@ -469,7 +534,11 @@ async function authMe(request, env) {
 }
 
 async function cloudSave(request, env, url) {
+  await ensureAuthSchema(env.DB);
   const user = await sessionUser(env.DB, request);
+  if (!user && request.method === 'GET') {
+    return json({ ok: true, authenticated: false, save: null, revision: 0, updatedAt: null });
+  }
   if (!user) return json({ error: 'Chưa đăng nhập.' }, 401);
 
   if (request.method === 'GET') {
@@ -679,6 +748,8 @@ function withSiteHeaders(response) {
   h.set('X-Frame-Options', 'DENY');
   h.set('X-Robots-Tag', 'noarchive, nosnippet');
   h.set('Content-Security-Policy', "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'");
+  const contentType = h.get('Content-Type') || '';
+  if (contentType.includes('text/html')) h.set('Cache-Control', 'no-store, max-age=0');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
 }
 
