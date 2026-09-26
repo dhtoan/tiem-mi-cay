@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "check": "node --check src/worker.js",
-    "build": "npm run check",
-    "dev": "wrangler dev --local",
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && wrangler dev --local",
     "db:local": "wrangler d1 migrations apply DB --local",
     "db:remote": "wrangler d1 migrations apply DB --remote",
     "test:smoke": "bash scripts/smoke.sh",
-    "deploy": "npm run db:remote && wrangler deploy"
+    "deploy": "npm run build && npm run db:remote && wrangler deploy"
   },
   "devDependencies": {
-    "wrangler": "4.141.0"
+    "wrangler": "4.141.0",
+    "html-minifier-terser": "^7.2.0"
   },
   "cloudflare": {
     "bindings": {
@@ -21,5 +22,7 @@
         "description": "D1 database for accounts, cloud saves, leaderboards, challenges and social game data."
       }
     }
-  }
+  },
+  "author": "Aunomay LLC <support@aunomay.com>",
+  "homepage": "https://aunomay.com"
 }
