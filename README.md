@@ -2,7 +2,7 @@
 
 Game quản lý tiệm mì cay chạy trên Cloudflare Workers, dùng D1 cho dữ liệu online và hỗ trợ PWA/offline.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/dhtoan/micay)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/dhtoan/tiem-mi-cay)
 
 ## One-click deploy
 
@@ -28,7 +28,7 @@ wrangler deploy
 thông qua script:
 
 ```json
-"deploy": "npm run db:remote && wrangler deploy"
+"deploy": "npm run build && npm run db:remote && wrangler deploy"
 ```
 
 ## Tính năng production
@@ -225,6 +225,36 @@ package.json
 wrangler.toml
 ```
 
+## Security Mode
+
+Production được build qua `scripts/build.mjs`:
+
+- HTML + inline JS/CSS được minify/mangle;
+- comment bị loại bỏ;
+- không tạo source map;
+- Cloudflare chỉ serve thư mục `dist/`;
+- mọi request đi qua Worker trước khi lấy static asset;
+- hostname ngoài danh sách cho phép bị trả `403`;
+- chặn iframe bằng `X-Frame-Options: DENY` và CSP `frame-ancestors 'none'`;
+- static resource áp dụng `Cross-Origin-Resource-Policy: same-origin`;
+- client chặn thao tác View Source/Save Page phổ biến ở mức UI.
+
+Hostname production mặc định:
+
+```text
+tiem-mi-cay.aunomay.workers.dev
+```
+
+Nếu thêm custom domain, đặt Worker variable:
+
+```text
+ALLOWED_HOSTS=tiemmicay.aunomay.com
+```
+
+Nhiều hostname phân tách bằng dấu phẩy.
+
+Lưu ý: code chạy trong browser không thể được che tuyệt đối khỏi một người có đủ kỹ năng. Muốn source repo không công khai thì phải chuyển GitHub repository sang private; điều đó xung đột với việc dùng repo như public one-click template.
+
 ## Security
 
 - Cookie session không được JavaScript đọc.
@@ -245,3 +275,12 @@ Game logic vẫn chạy phần lớn ở client nên đây không phải mô hì
 ```text
 public/music/CREDITS.md
 ```
+
+
+## Brand & Support
+
+**Publisher / operator:** Aunomay LLC  
+**Website:** https://aunomay.com  
+**Support:** support@aunomay.com
+
+Các thành phần gốc của Tiệm Mì Cay do Aunomay LLC phát hành và vận hành. Tài sản bên thứ ba vẫn tuân theo giấy phép riêng được ghi nhận trong repo.
