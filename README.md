@@ -301,3 +301,22 @@ Bản production hiện gồm:
 - Sửa bố cục bếp trên màn iPhone thấp bằng transform scale.
 - Mã game tách thành file versioned `/g/game-20260928.js` để cache dài hạn.
 - Tài khoản Aunomay và cloud autosave vẫn được giữ nguyên.
+
+
+## Live feature report
+
+Production có trang:
+
+```text
+https://tiemmicay.aunomay.com/report-tinh-nang
+```
+
+Trang gọi `/api/report-features` để đọc báo cáo tính năng tham chiếu, tóm tắt các mục và so sánh với danh sách tính năng của bản Aunomay.
+
+Trạng thái:
+
+- **Đã có**: tính năng tham chiếu đã được port.
+- **MỚI · Chưa có**: nguồn có tính năng chưa được đánh dấu là đã triển khai.
+- **Aunomay**: tính năng riêng của bản production như tài khoản, cloud autosave và Security Mode.
+
+Nguồn được cache phía Worker khoảng 10 phút; trang đang mở tự kiểm tra lại mỗi 15 phút.
