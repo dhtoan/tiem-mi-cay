@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="index,follow">
+<title>Báo cáo tính năng · Tiệm Mì Cay</title>
+<meta name="description" content="So sánh tính năng Tiệm Mì Cay của Aunomay với trang tham chiếu và tự động phát hiện tính năng mới.">
+<meta name="author" content="Aunomay LLC">
+<link rel="canonical" href="https://tiemmicay.aunomay.com/report-tinh-nang">
+<style>
+:root{color-scheme:light;--bg:#fff7f1;--card:#fff;--ink:#40262a;--muted:#856d70;--line:#efdcd4;--brand:#5a2334;--brand2:#7a3346;--red:#d9473f;--green:#2f7d40;--greenbg:#e9f6ec;--amber:#8c5c00;--amberbg:#fff3d8;--blue:#315d8f;--bluebg:#edf4fc;--soft:#fbeee8;--shadow:0 14px 40px rgba(70,35,42,.10)}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#171014;--card:#24181e;--ink:#f3e6e1;--muted:#c1a8a4;--line:#3b2930;--brand:#3a1822;--brand2:#5a2334;--red:#ff776d;--green:#7bd08c;--greenbg:#1d3324;--amber:#f0bd5c;--amberbg:#3a2b13;--blue:#8bb8ea;--bluebg:#172b42;--soft:#321f27;--shadow:none}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.top{background:linear-gradient(145deg,var(--brand),var(--brand2));color:#fff3ee;padding:28px 16px}.wrap{max-width:980px;margin:auto}.top h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:0 0 8px}.top p{margin:0;max-width:70ch;color:#f1d7d0}.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.btn{appearance:none;border:0;border-radius:10px;padding:10px 13px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px}.btn.primary{background:#fff;color:var(--brand)}.btn.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}main{padding:20px 16px 44px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}.stat b{display:block;font-size:26px}.stat span{color:var(--muted);font-size:13px}.stat.alert{background:var(--amberbg)}.stat.alert b{color:var(--amber)}.panel{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}.ph{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:14px 16px;background:var(--soft);border-bottom:1px solid var(--line)}.ph h2{font-size:20px;margin:0}.ph p{margin:3px 0 0;color:var(--muted);font-size:13px}.badge{display:inline-flex;align-items:center;border-radius:99px;padding:4px 9px;font-weight:800;font-size:12px;white-space:nowrap}.ok{background:var(--greenbg);color:var(--green)}.new{background:var(--amberbg);color:var(--amber)}.own{background:var(--bluebg);color:var(--blue)}.list{display:grid}.feature{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;padding:13px 16px;border-bottom:1px solid var(--line)}.feature:last-child{border-bottom:0}.feature h3{font-size:15px;margin:0}.feature p{margin:4px 0 0;color:var(--muted);font-size:13px}.meta{margin-top:6px;color:var(--muted);font-size:12px}.state{align-self:start}.notice{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--amberbg);color:var(--amber);font-weight:700}.notice.okay{background:var(--greenbg);color:var(--green)}.notice.error{background:#fde7e4;color:#9f2d28}.foot{margin-top:18px;color:var(--muted);font-size:12.5px}.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:720px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.feature{grid-template-columns:1fr}.state{justify-self:start}}@media(max-width:420px){.summary{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <h1>Báo cáo tính năng</h1>
+  <p>Tự động đọc trang tham chiếu, đối chiếu với bản Tiệm Mì Cay đang chạy trên Aunomay và đánh dấu những tính năng mới chưa được port.</p>
+  <div class="tools">
+    <button id="refresh" class="btn primary" type="button">↻ Cập nhật ngay</button>
+    <a class="btn ghost" href="https://aenhatrang.com/report-tinh-nang" target="_blank" rel="noopener noreferrer">Mở nguồn tham chiếu ↗</a>
+    <a class="btn ghost" href="/">← Về game</a>
+  </div>
+</div></header>
+<main class="wrap">
+  <div id="notice" class="notice">Đang tải dữ liệu so sánh…</div>
+  <section class="summary" aria-label="Tóm tắt" style="margin-top:14px">
+    <div class="stat"><b id="sourceCount">–</b><span>Tính năng ở nguồn</span></div>
+    <div class="stat"><b id="implementedCount">–</b><span>Đã có trong Aunomay</span></div>
+    <div class="stat alert"><b id="missingCount">–</b><span>Nguồn mới chưa có</span></div>
+    <div class="stat"><b id="ownCount">–</b><span>Chỉ Aunomay có</span></div>
+  </section>
+
+  <section class="panel">
+    <div class="ph"><div><h2>So sánh với nguồn</h2><p id="sourceMeta">Chưa có dữ liệu.</p></div><span id="sourceStatus" class="badge">Đang tải</span></div>
+    <div id="comparison" class="list"></div>
+  </section>
+
+  <section class="panel">
+    <div class="ph"><div><h2>Tính năng riêng của Aunomay</h2><p>Những phần được phát triển thêm ngoài bản tham chiếu.</p></div><span class="badge own">Aunomay</span></div>
+    <div id="aunomayOnly" class="list"></div>
+  </section>
+
+  <p class="foot">Trang tự kiểm tra lại mỗi 15 phút khi đang mở. API phía máy chủ cache nguồn trong 10 phút để tránh tạo tải không cần thiết. Dữ liệu nguồn được tóm tắt để so sánh, không sao chép toàn bộ báo cáo.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let busy=false,lastFingerprint='';
+function featureRow(f){
+  const implemented=f.status==='implemented';
+  return '<article class="feature"><div><h3>'+esc(f.name)+'</h3><p>'+esc(f.description||'')+'</p><div class="meta">'+
+    (f.category?'Nhóm: '+esc(f.category):'')+(f.tests?' · Test: '+esc(f.tests):'')+
+    (f.localName&&f.localName!==f.name?' · Khớp với: '+esc(f.localName):'')+
+    '</div></div><span class="badge state '+(implemented?'ok':'new')+'">'+(implemented?'Đã có':'MỚI · Chưa có')+'</span></article>';
+}
+function ownRow(f){return '<article class="feature"><div><h3>'+esc(f.name)+'</h3><p>'+esc(f.description||'')+'</p></div><span class="badge state own">Aunomay</span></article>'}
+async function load(force=false){
+  if(busy)return;busy=true;
+  $('refresh').innerHTML='<span class="spin"></span> Đang cập nhật';
+  try{
+    const r=await fetch('/api/report-features'+(force?'?t='+Date.now():''),{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||'Không tải được dữ liệu.');
+    $('sourceCount').textContent=j.counts.sourceFeatures;
+    $('implementedCount').textContent=j.counts.implemented;
+    $('missingCount').textContent=j.counts.missing;
+    $('ownCount').textContent=j.counts.aunomayOnly;
+    $('comparison').innerHTML=j.comparison.length?j.comparison.map(featureRow).join(''):'<article class="feature"><p>Chưa nhận diện được tính năng nào từ nguồn.</p></article>';
+    $('aunomayOnly').innerHTML=j.aunomayOnly.map(ownRow).join('');
+    const d=j.source.date?' · '+j.source.date:'';
+    const tests=j.source.testSummary?' · '+j.source.testSummary+' test':'';
+    $('sourceMeta').textContent='Nguồn: aenhatrang.com/report-tinh-nang'+d+tests+' · kiểm tra '+new Date(j.checkedAt).toLocaleString('vi-VN');
+    $('sourceStatus').className='badge '+(j.counts.missing?'new':'ok');
+    $('sourceStatus').textContent=j.counts.missing?j.counts.missing+' tính năng mới':'Đã đồng bộ';
+    const n=$('notice');
+    if(j.counts.missing){
+      n.className='notice';
+      n.innerHTML='<b>Phát hiện '+j.counts.missing+' tính năng nguồn chưa có trong Aunomay.</b> Xem các mục có nhãn “MỚI · Chưa có” bên dưới.';
+    }else{
+      n.className='notice okay';
+      n.textContent='Chưa phát hiện tính năng mới ở nguồn. Các tính năng nhận diện được hiện đã có trong bản Aunomay.';
+    }
+    if(lastFingerprint&&lastFingerprint!==j.fingerprint&&j.counts.missing&&'Notification'in window&&Notification.permission==='granted'){
+      new Notification('Tiệm Mì Cay có tính năng tham chiếu mới',{body:'Phát hiện '+j.counts.missing+' tính năng mới chưa được port.'});
+    }
+    lastFingerprint=j.fingerprint||lastFingerprint;
+  }catch(e){
+    $('notice').className='notice error';
+    $('notice').textContent='Không thể cập nhật nguồn lúc này: '+e.message;
+    $('sourceStatus').className='badge new';$('sourceStatus').textContent='Lỗi nguồn';
+  }finally{busy=false;$('refresh').textContent='↻ Cập nhật ngay'}
+}
+$('refresh').addEventListener('click',()=>load(true));
+load();
+setInterval(()=>load(false),15*60*1000);
+</script>
+</body>
+</html>
