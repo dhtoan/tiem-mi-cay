@@ -4,13 +4,36 @@ const CHAL_DURATION_MS = 30 * 60 * 1000;
 const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']);
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
-const APP_VERSION = '2026.09.28-game1';
+const APP_VERSION = '2026.09.28-report1';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const PBKDF2_ITER = 120000;
 const SAVE_MAX_BYTES = 180 * 1024;
 const DEFAULT_ALLOWED_HOSTS = new Set(['tiem-mi-cay.aunomay.workers.dev']);
+const REPORT_SOURCE_URL = 'https://aenhatrang.com/report-tinh-nang';
+const REPORT_CACHE_MS = 10 * 60 * 1000;
+const REPORT_LOCAL_FEATURES = [
+  { name: 'Rửa tô cuối ngày', aliases: ['rửa tô'] },
+  { name: 'Nước lẩu bí truyền', aliases: ['nước lẩu bí truyền'] },
+  { name: 'Chạy xe giao đơn xa', aliases: ['giao đơn xa', 'giao xa'] },
+  { name: 'iPhone mất cột đầu trong bếp', aliases: ['iphone mất cột đầu', 'transform scale'] },
+  { name: 'Trang tải nhanh hơn', aliases: ['trang tải nhanh', 'file mã phiên bản'] },
+  { name: 'Nồi luộc thứ ba, vợt múc mì, chờ Cô Chôm', aliases: ['nồi luộc thứ ba', 'vợt múc mì', 'chờ cô chôm'] },
+  { name: 'Nút cộng trừ ở tab Kho và Giá bán', aliases: ['nút cộng trừ', 'giữ nút'] },
+  { name: 'Thanh chỉnh âm lượng nhạc và âm thanh', aliases: ['thanh chỉnh âm lượng', 'âm lượng nhạc'] },
+  { name: 'Vòng thời gian quanh khách', aliases: ['vòng thời gian quanh khách'] },
+  { name: 'Loa hỏng không làm hỏng game', aliases: ['loa hỏng'] },
+  { name: 'Bản web đã làm rối mã', aliases: ['bản web đã làm rối mã', 'ios 12'] },
+];
+const REPORT_AUNOMAY_ONLY = [
+  { name: 'Tài khoản Aunomay', description: 'Đăng ký, đăng nhập và phiên tài khoản trên Cloudflare D1.' },
+  { name: 'Cloud autosave liên tục', description: 'Tự lưu sau thay đổi, lưu định kỳ và đồng bộ nhiều thiết bị có chống xung đột.' },
+  { name: 'Nhắc tạo tài khoản', description: 'Hiệu ứng nhắc người chơi guest bật tự động lưu cloud mà không làm gián đoạn gameplay.' },
+  { name: 'Security Mode', description: 'Host lock, chống iframe/hotlink, minify production và không source map.' },
+  { name: 'Cloudflare production stack', description: 'Workers + Static Assets + D1 + CI + migrations + custom domain.' },
+];
+let reportCache = { at: 0, data: null };
 let authSchemaReady = false;
 let authSchemaInit = null;
 
@@ -22,6 +45,11 @@ export default {
       if (url.pathname.startsWith('/api/')) {
         const response = await routeApi(request, env, url);
         return withApiHeaders(response);
+      }
+      if (url.pathname === '/report-tinh-nang' || url.pathname === '/report-tinh-nang/') {
+        const assetUrl = new URL('/report-tinh-nang/index.html', url);
+        const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+        return withSiteHeaders(response, url);
       }
       const response = await env.ASSETS.fetch(request);
       return withSiteHeaders(response, url);
@@ -38,6 +66,7 @@ export default {
 async function routeApi(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '');
   if (path === '/api/err') return clientErrorReport(request);
+  if (path === '/api/report-features') return reportFeatures(request, env);
   if (!env.DB) return json({ error: 'Database chưa được cấu hình.' }, 503);
   if (path === '/api/health') return healthCheck(env);
   if (path === '/api/lb') return leaderboard(request, env, url);
@@ -50,6 +79,154 @@ async function routeApi(request, env, url) {
   if (path === '/api/save') return cloudSave(request, env, url);
   if (path === '/api/ai') return aiReply(request, env);
   return json({ error: 'Không tìm thấy API.' }, 404);
+}
+
+async function reportFeatures(request, env) {
+  if (request.method !== 'GET') return methodNotAllowed('GET');
+  const now = Date.now();
+  if (reportCache.data && now - reportCache.at < REPORT_CACHE_MS) {
+    return json({ ...reportCache.data, cached: true, cacheAgeMs: now - reportCache.at });
+  }
+
+  let response;
+  try {
+    response = await fetch(REPORT_SOURCE_URL, {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml',
+        'User-Agent': 'Aunomay-Tiem-Mi-Cay-Feature-Monitor/1.0',
+      },
+    });
+  } catch (error) {
+    console.error('Feature report source fetch failed', error);
+    if (reportCache.data) return json({ ...reportCache.data, cached: true, stale: true, sourceError: 'Không tải được nguồn mới nhất.' });
+    return json({ ok: false, error: 'Không tải được trang nguồn để so sánh tính năng.' }, 502);
+  }
+  if (!response.ok) {
+    if (reportCache.data) return json({ ...reportCache.data, cached: true, stale: true, sourceError: 'Nguồn trả lỗi ' + response.status });
+    return json({ ok: false, error: 'Trang nguồn trả lỗi ' + response.status + '.' }, 502);
+  }
+
+  const html = await response.text();
+  const parsed = parseFeatureReport(html);
+  const comparison = parsed.features.map(feature => {
+    const local = matchLocalFeature(feature.name);
+    return {
+      ...feature,
+      status: local ? 'implemented' : 'missing',
+      localName: local?.name || null,
+      isNew: !local,
+    };
+  });
+  const newFeatures = comparison.filter(x => x.status === 'missing');
+  const digestInput = JSON.stringify(parsed.features.map(x => [x.name, x.tests, x.description]));
+  const fingerprint = await sha256Hex(digestInput);
+  const data = {
+    ok: true,
+    checkedAt: now,
+    version: APP_VERSION,
+    source: {
+      url: REPORT_SOURCE_URL,
+      date: parsed.date,
+      testSummary: parsed.testSummary,
+      etag: response.headers.get('etag'),
+      lastModified: response.headers.get('last-modified'),
+    },
+    counts: {
+      sourceFeatures: comparison.length,
+      implemented: comparison.length - newFeatures.length,
+      missing: newFeatures.length,
+      aunomayOnly: REPORT_AUNOMAY_ONLY.length,
+    },
+    comparison,
+    newFeatures,
+    aunomayOnly: REPORT_AUNOMAY_ONLY,
+    fingerprint,
+    cached: false,
+  };
+  reportCache = { at: now, data };
+  return json(data);
+}
+
+function parseFeatureReport(html) {
+  const dateMatch = html.match(/Tiệm Mì Cay\s*·\s*([^<\n]+)/i);
+  const statMatch = html.match(/<div[^>]*class=["'][^"']*stat\s+big[^"']*["'][^>]*>\s*<b>([^<]+)<\/b>/i);
+  const features = [];
+  const sectionRe = /<section\b[^>]*class=["'][^"']*card[^"']*["'][^>]*>([\s\S]*?)<\/section>/gi;
+  let section;
+  while ((section = sectionRe.exec(html))) {
+    const block = section[1];
+    const title = htmlText((block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || '');
+    if (!title) continue;
+    const tag = htmlText((block.match(/<span[^>]*class=["'][^"']*tag[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+    const pill = htmlText((block.match(/<span[^>]*class=["'][^"']*pill[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+    const firstP = htmlText((block.match(/<div[^>]*class=["'][^"']*txt[^"']*["'][^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i) || [])[1] || '');
+
+    if (normalizeFeatureName(title) === normalizeFeatureName('Các tính năng khác')) {
+      const tbody = (block.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i) || [])[1] || '';
+      const rowRe = /<tr[^>]*>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
+      let row;
+      while ((row = rowRe.exec(tbody))) {
+        features.push({
+          name: htmlText(row[1]),
+          category: 'Cùng đợt',
+          tests: htmlText(row[3]),
+          description: htmlText(row[2]),
+        });
+      }
+      continue;
+    }
+
+    const normalized = normalizeFeatureName(title);
+    if (['bo test game', 'chi phi', 'lich su loi da sua'].includes(normalized)) continue;
+    if (tag || ['iphone mat cot dau trong bep', 'trang tai nhanh hon'].includes(normalized)) {
+      features.push({ name: title, category: tag || 'Cập nhật', tests: pill, description: firstP });
+    }
+  }
+  return {
+    date: dateMatch ? htmlText(dateMatch[1]) : null,
+    testSummary: statMatch ? htmlText(statMatch[1]) : null,
+    features,
+  };
+}
+
+function htmlText(value) {
+  return decodeHtml(String(value || '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim());
+}
+
+function decodeHtml(value) {
+  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  return String(value || '').replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (_, code) => {
+    if (code[0] === '#') {
+      const hex = code[1]?.toLowerCase() === 'x';
+      const n = parseInt(code.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return Number.isFinite(n) ? String.fromCodePoint(n) : _;
+    }
+    return named[code.toLowerCase()] ?? _;
+  });
+}
+
+function normalizeFeatureName(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function matchLocalFeature(name) {
+  const n = normalizeFeatureName(name);
+  for (const feature of REPORT_LOCAL_FEATURES) {
+    const candidates = [feature.name, ...(feature.aliases || [])].map(normalizeFeatureName);
+    if (candidates.some(x => x === n || (x.length >= 8 && (n.includes(x) || x.includes(n))))) return feature;
+  }
+  return null;
+}
+
+async function sha256Hex(value) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value)));
+  return Array.from(new Uint8Array(buf), x => x.toString(16).padStart(2, '0')).join('');
 }
 
 async function clientErrorReport(request) {
