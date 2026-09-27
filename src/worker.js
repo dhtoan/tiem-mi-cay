@@ -119,7 +119,7 @@ async function reportFeatures(request, env) {
   });
   const newFeatures = comparison.filter(x => x.status === 'missing');
   const digestInput = JSON.stringify(parsed.features.map(x => [x.name, x.tests, x.description]));
-  const fingerprint = await sha256Hex(digestInput);
+  const fingerprint = await reportSha256Hex(digestInput);
   const data = {
     ok: true,
     checkedAt: now,
@@ -224,7 +224,7 @@ function matchLocalFeature(name) {
   return null;
 }
 
-async function sha256Hex(value) {
+async function reportSha256Hex(value) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value)));
   return Array.from(new Uint8Array(buf), x => x.toString(16).padStart(2, '0')).join('');
 }
