@@ -4,7 +4,7 @@ const CHAL_DURATION_MS = 30 * 60 * 1000;
 const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']);
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
-const APP_VERSION = '2026.09.26-auth3';
+const APP_VERSION = '2026.09.28-game1';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -24,7 +24,7 @@ export default {
         return withApiHeaders(response);
       }
       const response = await env.ASSETS.fetch(request);
-      return withSiteHeaders(response);
+      return withSiteHeaders(response, url);
     } catch (error) {
       console.error('Unhandled worker error', error);
       if (url.pathname.startsWith('/api/')) {
@@ -36,8 +36,9 @@ export default {
 };
 
 async function routeApi(request, env, url) {
-  if (!env.DB) return json({ error: 'Database chưa được cấu hình.' }, 503);
   const path = url.pathname.replace(/\/+$/, '');
+  if (path === '/api/err') return clientErrorReport(request);
+  if (!env.DB) return json({ error: 'Database chưa được cấu hình.' }, 503);
   if (path === '/api/health') return healthCheck(env);
   if (path === '/api/lb') return leaderboard(request, env, url);
   if (path === '/api/chal') return challenge(request, env, url);
@@ -49,6 +50,19 @@ async function routeApi(request, env, url) {
   if (path === '/api/save') return cloudSave(request, env, url);
   if (path === '/api/ai') return aiReply(request, env);
   return json({ error: 'Không tìm thấy API.' }, 404);
+}
+
+async function clientErrorReport(request) {
+  if (request.method !== 'POST') return methodNotAllowed('POST');
+  const b = await bodyJson(request);
+  if (b) {
+    console.warn('Client game error', {
+      message: cleanText(b.m, 200),
+      stack: cleanText(b.s, 400),
+      userAgent: cleanText(b.ua, 180),
+    });
+  }
+  return new Response(null, { status: 204 });
 }
 
 async function leaderboard(request, env) {
@@ -752,7 +766,7 @@ function withApiHeaders(response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
 }
 
-function withSiteHeaders(response) {
+function withSiteHeaders(response, url) {
   const h = new Headers(response.headers);
   h.set('X-Content-Type-Options', 'nosniff');
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -763,7 +777,13 @@ function withSiteHeaders(response) {
   h.set('X-Robots-Tag', 'noarchive, nosnippet');
   h.set('Content-Security-Policy', "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'");
   const contentType = h.get('Content-Type') || '';
-  if (contentType.includes('text/html')) h.set('Cache-Control', 'no-store, max-age=0');
+  if (contentType.includes('text/html')) {
+    h.set('Cache-Control', 'no-store, max-age=0');
+  } else if (url && url.pathname.startsWith('/g/')) {
+    h.set('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (url && url.pathname.startsWith('/assets/media/')) {
+    h.set('Cache-Control', 'public, max-age=2592000');
+  }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
 }
 
