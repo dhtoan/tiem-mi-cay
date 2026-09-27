@@ -48,7 +48,10 @@ export default {
       }
       if (url.pathname === '/report-tinh-nang' || url.pathname === '/report-tinh-nang/') {
         const assetUrl = new URL('/report-tinh-nang/index.html', url);
-        const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+        const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), {
+          method: 'GET',
+          headers: request.headers,
+        }));
         return withSiteHeaders(response, url);
       }
       const response = await env.ASSETS.fetch(request);
