@@ -26,7 +26,20 @@
 .caPrimary{background:#5a2334;color:#fff}.caAlt{background:#f2e8ec;color:#4a2030}.caDanger{background:#fff0f0;color:#8a2d2d}.caClose{margin-left:auto!important}
 #caStatus{min-height:18px;margin-top:10px;font-size:12px;color:#715866;word-break:break-word}
 #caUser{font-weight:800;color:#5a2334}
-@media(max-width:560px){#cloudAccountBtn{right:10px;bottom:10px;padding:10px 12px}.caBox{padding:16px}}
+#cloudAccountBtn.caPulse{animation:caPulse 1.1s ease-in-out 3}
+#cloudAccountBtn[data-sync="saving"]{opacity:.86}
+#cloudAccountBtn[data-sync="saved"]{box-shadow:0 5px 20px #0003,0 0 0 3px rgba(62,155,79,.16)}
+@keyframes caPulse{0%,100%{transform:scale(1)}45%{transform:scale(1.08);box-shadow:0 7px 26px #0004,0 0 0 8px rgba(90,35,52,.12)}}
+#cloudSaveNudge{position:fixed;right:14px;bottom:66px;z-index:79;width:min(330px,calc(100vw - 28px));padding:13px 14px 12px;border:1px solid #ead9df;border-radius:16px;background:#fff;color:#2a1720;box-shadow:0 16px 45px #0003;font-family:system-ui;opacity:0;transform:translateY(12px) scale(.98);pointer-events:none;transition:opacity .24s ease,transform .24s ease}
+#cloudSaveNudge.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+#cloudSaveNudge b{display:block;padding-right:24px;font-size:15px;color:#5a2334}
+#cloudSaveNudge span{display:block;margin-top:4px;font-size:12.5px;line-height:1.4;color:#715866}
+#cloudSaveNudge .caNudgeActions{display:flex;gap:7px;margin-top:9px}
+#cloudSaveNudge button{border:0;border-radius:9px;padding:8px 10px;font-weight:800;cursor:pointer}
+#caNudgeOpen{background:#5a2334;color:#fff}
+#caNudgeLater{background:#f2e8ec;color:#5a2334}
+#caNudgeClose{position:absolute;right:7px;top:6px;width:28px;height:28px;padding:0;background:transparent!important;color:#8a6f7b;font-size:18px}
+@media(max-width:560px){#cloudAccountBtn{right:10px;bottom:10px;padding:10px 12px}.caBox{padding:16px}#cloudSaveNudge{right:10px;bottom:64px;width:min(320px,calc(100vw - 20px))}}
 </style></head>
 <body>
 <title>Tiệm Mì Cay</title>
@@ -3497,11 +3510,20 @@ if(/^(localhost|127\.0\.0\.1|example\.test)$/.test(location.hostname))window.__d
 })();
 </script>
 
+<aside id="cloudSaveNudge" hidden role="status" aria-live="polite">
+  <button id="caNudgeClose" type="button" aria-label="Đóng">×</button>
+  <b>☁️ Đừng mất tiến trình</b>
+  <span>Tạo tài khoản để Tiệm Mì Cay tự động lưu khi bạn chơi và tiếp tục trên thiết bị khác.</span>
+  <div class="caNudgeActions">
+    <button id="caNudgeOpen" type="button">Bật tự động lưu</button>
+    <button id="caNudgeLater" type="button">Để sau</button>
+  </div>
+</aside>
 <button id="cloudAccountBtn" type="button" aria-haspopup="dialog">☁️ Tài khoản</button>
 <dialog id="cloudAccountDlg">
   <div class="caBox">
     <div class="caBtns"><h2>Tài khoản & Cloud Save</h2><button id="caClose" class="caAlt caClose" type="button">Đóng</button></div>
-    <p id="caIntro">Đăng nhập để tiếp tục tiệm trên thiết bị khác. Tên đăng nhập có thể dùng chữ tiếng Việt, số, dấu chấm, gạch dưới hoặc gạch ngang. Game vẫn lưu local khi chưa đăng nhập.</p>
+    <p id="caIntro">Đăng nhập để bật tự động lưu cloud khi chơi và tiếp tục tiệm trên thiết bị khác. Tên đăng nhập có thể dùng chữ tiếng Việt, số, dấu chấm, gạch dưới hoặc gạch ngang. Game vẫn lưu local khi chưa đăng nhập.</p>
     <div id="caGuest">
       <div class="caGrid">
         <input id="caUserInput" autocomplete="username" maxlength="32" placeholder="Tên đăng nhập (3–32 ký tự)">
@@ -3523,27 +3545,191 @@ if(/^(localhost|127\.0\.0\.1|example\.test)$/.test(location.hostname))window.__d
     <div id="caStatus" aria-live="polite"></div>
   </div>
 </dialog>
-<script id="cloudAccountScript">
+<script id="cloudAccountScript" data-version="cloudAutosaveV2">
 (()=>{
-const $c=id=>document.getElementById(id), KEY='tiemMiCay2';
-let user=null, revision=0, timer=null, busy=false;
+const $c=id=>document.getElementById(id);
+const KEY='tiemMiCay2', LOCAL_TS='micayCloudLocalChangedAt', NUDGE_TS='micayCloudNudgeAt';
+const AUTOSAVE_DELAY=2500, AUTOSAVE_INTERVAL=30000, NUDGE_FIRST=35000, NUDGE_COOLDOWN=20*60*1000;
+let user=null,revision=0,timer=null,periodic=null,nudgeTimer=null,nudgeHideTimer=null;
+let actionBusy=false,syncing=false,dirty=false,lastUploaded='',syncConflict=false,cloudState='idle';
+
 const status=t=>{$c('caStatus').textContent=t||''};
-const api=async(path,opt={})=>{try{const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});let j={};try{j=await r.json()}catch{}return {ok:r.ok,status:r.status,j}}catch(e){return {ok:false,status:0,j:{error:'Không kết nối được máy chủ.'}}}};
-function render(){const signed=!!user;$c('caGuest').hidden=signed;$c('caSigned').hidden=!signed;$c('caUser').textContent=signed?(user.displayName||user.username):'';$c('cloudAccountBtn').textContent=signed?'☁️ '+(user.displayName||user.username):'☁️ Tài khoản'}
-async function me(){const r=await api('/api/auth/me',{method:'GET',headers:{}});user=r.ok&&r.j&&r.j.authenticated?r.j.user:null;render();if(user){const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}}
-async function auth(mode){if(busy)return;const raw=$c('caUserInput').value.normalize('NFKC').trim();const username=raw.toLocaleLowerCase('vi-VN').replace(/\s+/g,'_'),password=$c('caPassInput').value;const okName=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u.test(username);if(!okName){status('Tên đăng nhập cần 3–32 ký tự; chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.');return}if(password.length<8||password.length>128){status('Mật khẩu cần từ 8 đến 128 ký tự.');return}busy=true;status('Đang xử lý…');const r=await api('/api/auth/'+mode,{method:'POST',body:JSON.stringify({username,password,displayName:raw||username})});busy=false;if(!r.ok){status(r.j.error||'Không thực hiện được.');return}user=r.j.user;revision=0;render();status(mode==='register'?'Đã tạo tài khoản. Có thể lưu tiến trình lên cloud.':'Đăng nhập thành công.');const s=await api('/api/save',{method:'GET',headers:{}});if(s.ok)revision=Number(s.j.revision||0)}
-async function upload(silent=false){if(!user||busy)return;const save=localStorage.getItem(KEY);if(!save){if(!silent)status('Chưa có bản lưu local.');return}busy=true;if(!silent)status('Đang lưu lên cloud…');const r=await api('/api/save',{method:'PUT',body:JSON.stringify({save,revision,clientUpdatedAt:Date.now()})});busy=false;if(r.ok){revision=Number(r.j.revision||revision+1);if(!silent)status('Đã lưu lên cloud.')}else if(r.status===409){revision=Number(r.j.revision||revision);status('Cloud có bản mới hơn. Hãy tải cloud về hoặc thử lại sau khi kiểm tra.')}else if(!silent)status(r.j.error||'Lưu cloud thất bại.')}
-async function download(){if(!user||busy)return;busy=true;status('Đang tải bản cloud…');const r=await api('/api/save',{method:'GET',headers:{}});busy=false;if(!r.ok){status(r.j.error||'Không tải được cloud.');return}revision=Number(r.j.revision||0);if(!r.j.save){status('Tài khoản chưa có bản lưu cloud.');return}if(!confirm('Thay bản lưu trên thiết bị này bằng bản cloud? Trang sẽ tải lại.')){status('Đã hủy.');return}localStorage.setItem(KEY,r.j.save);location.reload()}
-async function logout(){if(busy)return;busy=true;await api('/api/auth/logout',{method:'POST',body:'{}'});busy=false;user=null;revision=0;render();status('Đã đăng xuất. Bản local vẫn được giữ trên thiết bị.')}
-window.__micayCloudQueue=()=>{if(!user)return;clearTimeout(timer);timer=setTimeout(()=>upload(true),1800)};
-$c('cloudAccountBtn').addEventListener('click',()=>{$c('cloudAccountDlg').showModal();status('')});
+const api=async(path,opt={})=>{try{
+  const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});
+  let j={};try{j=await r.json()}catch{}
+  return {ok:r.ok,status:r.status,j}
+}catch(e){return {ok:false,status:0,j:{error:'Không kết nối được máy chủ.'}}}};
+
+function localSave(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}}
+function localChangedAt(){try{return Number(localStorage.getItem(LOCAL_TS)||0)||0}catch(e){return 0}}
+function markLocalChanged(){try{localStorage.setItem(LOCAL_TS,String(Date.now()))}catch(e){}}
+function setSyncState(v){
+  cloudState=v;
+  const b=$c('cloudAccountBtn');if(!b)return;
+  b.dataset.sync=v;
+  b.title=!user?'Tạo tài khoản để tự động lưu':
+    v==='saving'?'Đang tự động lưu lên cloud':
+    v==='saved'?'Tiến trình đã được tự động lưu':
+    v==='conflict'?'Cloud có bản lưu mới hơn':'Tự động lưu cloud đang bật';
+}
+function render(){
+  const signed=!!user;
+  $c('caGuest').hidden=signed;$c('caSigned').hidden=!signed;
+  $c('caUser').textContent=signed?(user.displayName||user.username):'';
+  $c('cloudAccountBtn').textContent=signed?'☁️ '+(user.displayName||user.username):'☁️ Tài khoản';
+  if(signed)hideNudge(false);
+  setSyncState(cloudState);
+}
+function startPeriodic(){
+  clearInterval(periodic);
+  if(!user)return;
+  periodic=setInterval(()=>{if(user&&dirty&&!syncing&&!syncConflict)upload(true)},AUTOSAVE_INTERVAL);
+}
+function stopPeriodic(){clearInterval(periodic);periodic=null}
+function hideNudge(scheduleAgain=true){
+  const n=$c('cloudSaveNudge');if(!n)return;
+  n.classList.remove('show');
+  clearTimeout(nudgeHideTimer);
+  setTimeout(()=>{if(!n.classList.contains('show'))n.hidden=true},260);
+  $c('cloudAccountBtn')?.classList.remove('caPulse');
+  if(scheduleAgain&&!user)scheduleNudge(NUDGE_COOLDOWN);
+}
+function showNudge(){
+  if(user||document.visibilityState==='hidden'||!localSave())return scheduleNudge(NUDGE_FIRST);
+  const n=$c('cloudSaveNudge');if(!n)return;
+  try{localStorage.setItem(NUDGE_TS,String(Date.now()))}catch(e){}
+  n.hidden=false;requestAnimationFrame(()=>n.classList.add('show'));
+  const b=$c('cloudAccountBtn');if(b){b.classList.remove('caPulse');void b.offsetWidth;b.classList.add('caPulse')}
+  clearTimeout(nudgeHideTimer);nudgeHideTimer=setTimeout(()=>hideNudge(true),12000);
+}
+function scheduleNudge(delay=NUDGE_FIRST){
+  clearTimeout(nudgeTimer);if(user)return;
+  let last=0;try{last=Number(localStorage.getItem(NUDGE_TS)||0)||0}catch(e){}
+  const wait=Math.max(delay,last+NUDGE_COOLDOWN-Date.now());
+  nudgeTimer=setTimeout(showNudge,Math.max(1000,wait));
+}
+function openAccountFromNudge(){
+  hideNudge(false);$c('cloudAccountDlg').showModal();
+  status('Tạo tài khoản hoặc đăng nhập để bật tự động lưu cloud.');
+  setTimeout(()=>$c('caUserInput')?.focus(),80);
+}
+
+async function cloudMeta(){
+  const s=await api('/api/save',{method:'GET',headers:{}});
+  if(!s.ok)return null;
+  revision=Number(s.j.revision||0);
+  return s.j;
+}
+async function reconcileAfterAuth(){
+  const meta=await cloudMeta();if(!meta)return;
+  const local=localSave(),localTs=localChangedAt(),cloudTs=Number(meta.clientUpdatedAt||meta.updatedAt||0)||0;
+  lastUploaded=typeof meta.save==='string'?meta.save:'';
+  syncConflict=false;
+  if(!meta.save&&local){
+    dirty=true;await upload(true);
+    status('Đã bật tự động lưu. Tiến trình hiện tại đã được lưu lên cloud.');
+    return;
+  }
+  if(meta.save===local){
+    dirty=false;setSyncState('saved');
+    status('Đã đồng bộ. Từ bây giờ game sẽ tự động lưu lên cloud.');
+    return;
+  }
+  if(local&&localTs&&cloudTs&&localTs>cloudTs){
+    dirty=true;await upload(true);
+    status('Đã đồng bộ bản chơi mới nhất lên cloud.');
+    return;
+  }
+  if(meta.save&&cloudTs&&(!localTs||cloudTs>localTs)){
+    syncConflict=true;setSyncState('conflict');
+    status('Cloud đang có bản lưu mới hơn. Bạn có thể chọn “Tải cloud về máy” để tiếp tục bản đó.');
+    return;
+  }
+  dirty=false;setSyncState('idle');
+  status('Đã đăng nhập. Mọi thay đổi mới từ bây giờ sẽ tự động lưu lên cloud.');
+}
+async function me(){
+  const r=await api('/api/auth/me',{method:'GET',headers:{}});
+  user=r.ok&&r.j&&r.j.authenticated?r.j.user:null;
+  cloudState='idle';render();
+  if(user){startPeriodic();await reconcileAfterAuth()}
+  else{stopPeriodic();scheduleNudge()}
+}
+async function auth(mode){
+  if(actionBusy)return;
+  const raw=$c('caUserInput').value.normalize('NFKC').trim();
+  const username=raw.toLocaleLowerCase('vi-VN').replace(/\s+/g,'_'),password=$c('caPassInput').value;
+  const okName=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u.test(username);
+  if(!okName){status('Tên đăng nhập cần 3–32 ký tự; chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.');return}
+  if(password.length<8||password.length>128){status('Mật khẩu cần từ 8 đến 128 ký tự.');return}
+  actionBusy=true;status('Đang xử lý…');
+  const r=await api('/api/auth/'+mode,{method:'POST',body:JSON.stringify({username,password,displayName:raw||username})});
+  actionBusy=false;
+  if(!r.ok){status(r.j.error||'Không thực hiện được.');return}
+  user=r.j.user;revision=0;cloudState='idle';render();startPeriodic();
+  status(mode==='register'?'Đã tạo tài khoản. Đang bật tự động lưu…':'Đăng nhập thành công. Đang đồng bộ…');
+  await reconcileAfterAuth();
+}
+async function upload(silent=false,keepalive=false){
+  if(!user||syncing)return;
+  if(syncConflict&&silent)return;
+  if(syncConflict&&!silent){
+    if(!confirm('Cloud đang có bản lưu khác. Lưu bản trên thiết bị này sẽ thay thế bản cloud. Tiếp tục?'))return;
+    syncConflict=false;
+  }
+  const save=localSave();if(!save){if(!silent)status('Chưa có bản lưu local.');return}
+  if(save===lastUploaded&&!dirty){setSyncState('saved');if(!silent)status('Tiến trình đã được lưu trên cloud.');return}
+  syncing=true;setSyncState('saving');if(!silent)status('Đang lưu lên cloud…');
+  const r=await api('/api/save',{method:'PUT',body:JSON.stringify({save,revision,clientUpdatedAt:localChangedAt()||Date.now()}),keepalive});
+  syncing=false;
+  if(r.ok){
+    revision=Number(r.j.revision||revision+1);lastUploaded=save;dirty=false;syncConflict=false;setSyncState('saved');
+    if(!silent)status('Đã lưu lên cloud.');
+    return;
+  }
+  if(r.status===409){
+    revision=Number(r.j.revision||revision);syncConflict=true;setSyncState('conflict');
+    status('Cloud có bản mới hơn. Hãy tải cloud về hoặc chọn lưu thủ công để thay thế.');
+    return;
+  }
+  dirty=true;setSyncState('idle');
+  if(!silent)status(r.j.error||'Lưu cloud thất bại. Game sẽ tự thử lại.');
+}
+async function download(){
+  if(!user||actionBusy)return;actionBusy=true;status('Đang tải bản cloud…');
+  const r=await api('/api/save',{method:'GET',headers:{}});actionBusy=false;
+  if(!r.ok){status(r.j.error||'Không tải được cloud.');return}
+  revision=Number(r.j.revision||0);if(!r.j.save){status('Tài khoản chưa có bản lưu cloud.');return}
+  if(!confirm('Thay bản lưu trên thiết bị này bằng bản cloud? Trang sẽ tải lại.')){status('Đã hủy.');return}
+  try{localStorage.setItem(KEY,r.j.save);localStorage.setItem(LOCAL_TS,String(Number(r.j.clientUpdatedAt||r.j.updatedAt||Date.now())))}catch(e){}
+  location.reload();
+}
+async function logout(){
+  if(actionBusy)return;actionBusy=true;await api('/api/auth/logout',{method:'POST',body:'{}'});actionBusy=false;
+  user=null;revision=0;lastUploaded='';dirty=false;syncConflict=false;cloudState='idle';stopPeriodic();render();
+  status('Đã đăng xuất. Bản local vẫn được giữ trên thiết bị.');scheduleNudge(NUDGE_FIRST);
+}
+
+window.__micayCloudQueue=()=>{
+  markLocalChanged();dirty=true;
+  if(!user){scheduleNudge();return}
+  if(syncConflict)return;
+  clearTimeout(timer);timer=setTimeout(()=>upload(true),AUTOSAVE_DELAY);
+};
+
+$c('cloudAccountBtn').addEventListener('click',()=>{$c('cloudAccountDlg').showModal();status(user?'Tự động lưu cloud đang bật.':'Đăng nhập để bật tự động lưu cloud.')});
 $c('caClose').addEventListener('click',()=>{$c('cloudAccountDlg').close()});
 $c('caLogin').addEventListener('click',()=>auth('login'));
 $c('caRegister').addEventListener('click',()=>auth('register'));
 $c('caUpload').addEventListener('click',()=>upload(false));
 $c('caDownload').addEventListener('click',download);
 $c('caLogout').addEventListener('click',logout);
+$c('caNudgeOpen').addEventListener('click',openAccountFromNudge);
+$c('caNudgeLater').addEventListener('click',()=>hideNudge(true));
+$c('caNudgeClose').addEventListener('click',()=>hideNudge(true));
 $c('cloudAccountDlg').addEventListener('click',e=>{if(e.target===$c('cloudAccountDlg'))$c('cloudAccountDlg').close()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){if(user&&dirty&&!syncConflict)upload(true,true)}else if(!user)scheduleNudge(NUDGE_FIRST)});
+addEventListener('pagehide',()=>{if(user&&dirty&&!syncConflict)upload(true,true)});
 me();
 })();
 </script><script id="copyGuardScript">
