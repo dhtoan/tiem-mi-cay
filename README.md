@@ -284,3 +284,20 @@ public/music/CREDITS.md
 **Support:** support@aunomay.com
 
 Các thành phần gốc của Tiệm Mì Cay do Aunomay LLC phát hành và vận hành. Tài sản bên thứ ba vẫn tuân theo giấy phép riêng được ghi nhận trong repo.
+
+
+## Gameplay update 2026-09-28
+
+Bản production hiện gồm:
+
+- Rửa tô cuối ngày.
+- Nước lẩu bí truyền.
+- Chạy xe giao đơn xa.
+- Nồi luộc thứ ba và vợt múc mì.
+- Chờ Cô Chôm đi chợ về thay vì kẹt thao tác.
+- Nút + / - có giữ để tăng nhanh.
+- Thanh chỉnh âm lượng nhạc và âm thanh.
+- Vòng thời gian quanh khách.
+- Sửa bố cục bếp trên màn iPhone thấp bằng transform scale.
+- Mã game tách thành file versioned `/g/game-20260928.js` để cache dài hạn.
+- Tài khoản Aunomay và cloud autosave vẫn được giữ nguyên.
