@@ -46,6 +46,9 @@ export default {
         const response = await routeApi(request, env, url);
         return withApiHeaders(response);
       }
+      if (url.pathname === '/report-tinh-nang/latest-frame') {
+        return reportMirrorResponse(request);
+      }
       if (url.pathname === '/report-tinh-nang' || url.pathname === '/report-tinh-nang/') {
         const assetUrl = new URL('/report-tinh-nang/index.html', url);
         const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), {
@@ -65,6 +68,81 @@ export default {
     }
   },
 };
+
+async function reportMirrorResponse(request) {
+  if (request.method !== 'GET') return methodNotAllowed('GET');
+  let response;
+  try {
+    response = await fetch(REPORT_SOURCE_URL, {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml',
+        'User-Agent': 'Aunomay-Tiem-Mi-Cay-Report-Mirror/1.0',
+      },
+    });
+  } catch (error) {
+    console.error('Report mirror fetch failed', error);
+    return new Response('<!doctype html><meta charset="utf-8"><p>Không tải được nội dung mới nhất.</p>', {
+      status: 502,
+      headers: reportMirrorHeaders(),
+    });
+  }
+  if (!response.ok) {
+    return new Response('<!doctype html><meta charset="utf-8"><p>Nội dung mới nhất tạm thời không khả dụng.</p>', {
+      status: 502,
+      headers: reportMirrorHeaders(),
+    });
+  }
+  const sourceHtml = await response.text();
+  const html = sanitizeReportMirror(sourceHtml);
+  return new Response(html, { status: 200, headers: reportMirrorHeaders() });
+}
+
+function sanitizeReportMirror(html) {
+  const sourceBase = new URL(REPORT_SOURCE_URL).origin + '/';
+  let out = String(html || '');
+
+  out = out
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<script\b[^>]*\/?\s*>/gi, '')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<(object|embed)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
+    .replace(/<base\b[^>]*>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+formaction\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+  // Keep the exact source CSS and image paths working while disabling all
+  // user navigation away from the Aunomay report tab.
+  out = out
+    .replace(/<a\b[^>]*>/gi, '<span class="aunomay-mirror-link">')
+    .replace(/<\/a>/gi, '</span>')
+    .replace(/<form\b[^>]*>/gi, '<div class="aunomay-mirror-form">')
+    .replace(/<\/form>/gi, '</div>');
+
+  const headInsert = `<base href="${sourceBase}"><meta name="robots" content="noindex,nofollow"><style>
+.aunomay-mirror-link{color:inherit;text-decoration:inherit;cursor:default}
+.aunomay-mirror-form button,.aunomay-mirror-form input[type=submit]{pointer-events:none}
+</style>`;
+  if (/<head\b[^>]*>/i.test(out)) {
+    out = out.replace(/<head\b([^>]*)>/i, '<head$1>' + headInsert);
+  } else {
+    out = '<!doctype html><html><head>' + headInsert + '</head><body>' + out + '</body></html>';
+  }
+  return out;
+}
+
+function reportMirrorHeaders() {
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store, max-age=0',
+    'Content-Security-Policy': "default-src 'none'; script-src 'none'; style-src 'unsafe-inline' https://aenhatrang.com; img-src data: blob: https://aenhatrang.com; font-src data: https://aenhatrang.com; media-src https://aenhatrang.com; connect-src 'none'; frame-src 'none'; frame-ancestors 'self'; form-action 'none'; base-uri https://aenhatrang.com",
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  };
+}
 
 async function routeApi(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '');
