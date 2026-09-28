@@ -17,7 +17,7 @@ HEALTH="$(curl -fsS "$BASE/api/health")"
 test "$(printf '%s' "$HEALTH" | json_field ok)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field db)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field authSchema)" = "true"
-test "$(printf '%s' "$HEALTH" | json_field version)" = "2026.09.28-report2"
+test "$(printf '%s' "$HEALTH" | json_field version)" = "2026.09.28-sync1"
 
 echo "[2/8] public game"
 curl -fsS "$BASE/" -o "$TMP/index.html"
@@ -28,7 +28,7 @@ GUEST_SAVE="$(curl -fsS "$BASE/api/save")"
 test "$(printf '%s' "$GUEST_SAVE" | json_field authenticated)" = "false"
 
 echo "[2c/8] versioned game bundle"
-curl -fsS -D "$TMP/game-headers.txt" -o "$TMP/game.js" "$BASE/g/game-20260928.js"
+curl -fsS -D "$TMP/game-headers.txt" -o "$TMP/game.js" "$BASE/g/game-20260928-sync1.js"
 grep -q 'Rửa tô' "$TMP/game.js"
 grep -q 'Nước lẩu bí truyền' "$TMP/game.js"
 grep -q 'Giao xa' "$TMP/game.js"
@@ -59,6 +59,17 @@ if [ "$FRAME_CODE" = "200" ]; then
     exit 1
   fi
 fi
+
+echo "[2g/8] guest transfer codes"
+SYNC_CREATE="$(curl -fsS -H 'content-type: application/json' --data-binary '{"s":"MC2|smoke-transfer|sig"}' "$BASE/api/sync")"
+SYNC_CODE="$(printf '%s' "$SYNC_CREATE" | json_field code)"
+test "${#SYNC_CODE}" = "8"
+SYNC_GET="$(curl -fsS "$BASE/api/sync?code=$SYNC_CODE")"
+test "$(printf '%s' "$SYNC_GET" | json_field s)" = "MC2|smoke-transfer|sig"
+BAD_SYNC="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/api/sync?code=BAD")"
+test "$BAD_SYNC" = "400"
+COPY_CODE="$(curl -sS -o /dev/null -w '%{http_code}' -H 'content-type: application/json' --data-binary '{"h":"copied.example","top":"copied.example","ref":"","f":0}' "$BASE/api/copy")"
+test "$COPY_CODE" = "204"
 
 echo "[3/8] register"
 REG_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2],displayName:"CI Test"}))' "$SMOKE_USER" "$SMOKE_PASS")"
