@@ -311,7 +311,12 @@ Production có trang:
 https://tiemmicay.aunomay.com/report-tinh-nang
 ```
 
-Trang gọi `/api/report-features` để đọc báo cáo tính năng tham chiếu, tóm tắt các mục và so sánh với danh sách tính năng của bản Aunomay.
+Trang gọi `/api/report-features` để đọc báo cáo tính năng tham chiếu, so sánh với bản Aunomay và hiển thị thêm tab **Nội dung mới nhất** ngay trên Aunomay. Người dùng không cần mở website nguồn.
+
+Trang có 2 tab:
+
+- **So sánh tính năng**: đối chiếu Đã có / Mới chưa có / Chỉ Aunomay.
+- **Nội dung mới nhất**: hiển thị nội dung báo cáo mới nhất đã được Worker làm sạch và cấu trúc lại ngay trong trang.
 
 Trạng thái:
 
