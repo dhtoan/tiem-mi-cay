@@ -452,7 +452,7 @@ function randomSyncCode() {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
   let out = '';
-  for (let i = 0; i < bytes.length; i++) out += SYNC_CODE_ALPHABET[bytes[i] & 31];
+  for (let i = 0; i < bytes.length; i++) out += SYNC_CODE_ALPHABET[bytes[i] % SYNC_CODE_ALPHABET.length];
   return out;
 }
 
