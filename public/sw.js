@@ -1,5 +1,5 @@
-const CACHE='tiem-mi-cay-v5';
-const CORE=['/','/manifest.webmanifest','/g/game-20260928.js'];
+const CACHE='tiem-mi-cay-v6';
+const CORE=['/','/manifest.webmanifest','/g/game-20260928-sync1.js'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(xs=>Promise.all(xs.filter(x=>x!==CACHE&&x.startsWith('tiem-mi-cay-')).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
