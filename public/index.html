@@ -65,6 +65,24 @@
 #caNudgeLater{background:#f2e8ec;color:#5a2334}
 #caNudgeClose{position:absolute;right:7px;top:6px;width:28px;height:28px;padding:0;background:transparent!important;color:#8a6f7b;font-size:18px}
 @media(max-width:560px){#cloudAccountBtn{right:10px;bottom:10px;padding:10px 12px}.caBox{padding:16px}#cloudSaveNudge{right:10px;bottom:64px;width:min(320px,calc(100vw - 20px))}}
+
+.caTransferCard{margin-top:16px;padding:14px;border:1px solid #ead9df;border-radius:16px;background:linear-gradient(180deg,#fffafa,#fff5f7)}
+.caTransferHead{display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;align-items:start}
+.caTransferIcon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#5a2334;color:#fff;font-size:22px;font-weight:900;box-shadow:0 3px 10px #5a233429}
+.caTransferHead h3{margin:1px 0 3px!important;font-size:15px!important;color:#4a2030}
+.caTransferHead p{margin:0!important;font-size:12.5px!important;line-height:1.45!important;color:#715866!important}
+.caTransferActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.caTransferAction{min-height:70px;border:1px solid #e7d3db;border-radius:12px;padding:10px 11px;background:#fff;color:#4a2030;text-align:left;box-shadow:0 2px 0 #ead9df;cursor:pointer}
+.caTransferAction:active{transform:translateY(1px);box-shadow:0 1px 0 #ead9df}
+.caTransferAction b{display:block;font-size:13px;line-height:1.25}
+.caTransferAction small{display:block;margin-top:4px;color:#856c76;font-size:11.5px;line-height:1.35}
+.caTransferFoot{margin-top:9px;color:#8a707a;font-size:11px;line-height:1.35;text-align:center}
+#card .tmScode{display:block;width:100%;box-sizing:border-box;margin:10px 0 6px;padding:12px 10px;border:2px solid #e6ddd8;border-radius:12px;background:#fbf8f7;color:var(--ink);font:700 24px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.1em;text-align:center;text-transform:uppercase;-webkit-user-select:text;user-select:text}
+#card .tmScode:focus{outline:3px solid rgba(247,201,72,.55);outline-offset:2px}
+#card .tmCodeDisplay{display:block;margin:12px 0 8px;padding:12px;border:2px dashed #efc9bc;border-radius:14px;background:#fff7f1;color:var(--chili-d);font:700 clamp(28px,9vw,36px)/1.15 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;-webkit-user-select:all;user-select:all}
+#card .tmTransferNote{font-size:12.5px;color:var(--ink2);background:#fff6d9;border:1px solid #efd58a;border-radius:11px;padding:9px 10px}
+#card .tmTransferStatus{min-height:20px;margin:4px 0 0;font-size:12.5px;color:var(--ink2)}
+#card .tmTransferStatus.bad{color:var(--bad);font-weight:700}
 </style>
 <link rel="stylesheet" href="/referral.css"></head>
 <body>
