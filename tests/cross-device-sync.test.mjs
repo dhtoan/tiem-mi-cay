@@ -22,3 +22,10 @@ test('D1 schema includes temporary transfer codes', async () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS sync_codes/i);
   assert.match(migration, /expires_at/i);
 });
+
+
+test('transfer-code generator uses the actual alphabet length', async () => {
+  const worker = await readFile('src/worker.js', 'utf8');
+  assert.match(worker, /bytes\[i\]\s*%\s*SYNC_CODE_ALPHABET\.length/);
+  assert.doesNotMatch(worker, /bytes\[i\]\s*&\s*31/);
+});
