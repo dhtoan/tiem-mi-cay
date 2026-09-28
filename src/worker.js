@@ -4,7 +4,7 @@ const CHAL_DURATION_MS = 30 * 60 * 1000;
 const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']);
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
-const APP_VERSION = '2026.09.28-report1';
+const APP_VERSION = '2026.09.28-report2';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -111,6 +111,7 @@ async function reportFeatures(request, env) {
 
   const html = await response.text();
   const parsed = parseFeatureReport(html);
+  const latest = parseLatestReportContent(html);
   const comparison = parsed.features.map(feature => {
     const local = matchLocalFeature(feature.name);
     return {
@@ -128,12 +129,12 @@ async function reportFeatures(request, env) {
     checkedAt: now,
     version: APP_VERSION,
     source: {
-      url: REPORT_SOURCE_URL,
       date: parsed.date,
       testSummary: parsed.testSummary,
       etag: response.headers.get('etag'),
       lastModified: response.headers.get('last-modified'),
     },
+    latest,
     counts: {
       sourceFeatures: comparison.length,
       implemented: comparison.length - newFeatures.length,
@@ -148,6 +149,73 @@ async function reportFeatures(request, env) {
   };
   reportCache = { at: now, data };
   return json(data);
+}
+
+function parseLatestReportContent(html) {
+  const title = htmlText((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || 'Báo cáo tính năng');
+  const firstSectionIndex = html.search(/<section\b[^>]*class=["'][^"']*card[^"']*["']/i);
+  const beforeSections = firstSectionIndex >= 0 ? html.slice(0, firstSectionIndex) : html;
+  const introMatch = beforeSections.match(/<h1[^>]*>[\s\S]*?<\/h1>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i);
+  const intro = htmlText(introMatch?.[1] || '');
+
+  const stats = [];
+  const statRe = /<div[^>]*class=["'][^"']*stat[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let stat;
+  while ((stat = statRe.exec(beforeSections))) {
+    const block = stat[1];
+    const value = htmlText((block.match(/<b[^>]*>([\s\S]*?)<\/b>/i) || [])[1] || '');
+    const label = htmlText(block.replace(/<b[^>]*>[\s\S]*?<\/b>/i, ' '));
+    if (value || label) stats.push({ value, label });
+  }
+
+  const sections = [];
+  const sectionRe = /<section\b[^>]*class=["'][^"']*card[^"']*["'][^>]*>([\s\S]*?)<\/section>/gi;
+  let section;
+  while ((section = sectionRe.exec(html))) {
+    const block = section[1];
+    const heading = htmlText((block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || '');
+    if (!heading) continue;
+    const tag = htmlText((block.match(/<span[^>]*class=["'][^"']*tag[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+    const pill = htmlText((block.match(/<span[^>]*class=["'][^"']*pill[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+
+    const blocks = [];
+    const tokenRe = /<(h3|p|summary|li)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+    let token;
+    while ((token = tokenRe.exec(block))) {
+      const text = htmlText(token[2]);
+      if (!text) continue;
+      blocks.push({ type: token[1].toLowerCase(), text });
+    }
+
+    const tables = [];
+    const tableRe = /<table\b[^>]*>([\s\S]*?)<\/table>/gi;
+    let table;
+    while ((table = tableRe.exec(block))) {
+      const rows = [];
+      const rowRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+      let row;
+      while ((row = rowRe.exec(table[1]))) {
+        const cells = [];
+        const cellRe = /<(th|td)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+        let cell;
+        while ((cell = cellRe.exec(row[1]))) {
+          cells.push({ header: cell[1].toLowerCase() === 'th', text: htmlText(cell[2]) });
+        }
+        if (cells.length) rows.push(cells);
+      }
+      if (rows.length) tables.push({ rows });
+    }
+
+    sections.push({ title: heading, tag, pill, blocks, tables });
+  }
+
+  return {
+    title,
+    intro,
+    date: (html.match(/Tiệm Mì Cay\s*·\s*([^<\n]+)/i) || [])[1] ? htmlText((html.match(/Tiệm Mì Cay\s*·\s*([^<\n]+)/i) || [])[1]) : null,
+    stats,
+    sections,
+  };
 }
 
 function parseFeatureReport(html) {
