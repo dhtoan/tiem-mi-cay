@@ -9,5 +9,5 @@ test('referral rescue has backend, QR share and money bridge',async()=>{
  const index=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
  assert.ok(index.includes('/referral.css'));assert.ok(index.includes('/vendor/qrcode.min.js'));assert.ok(index.includes('/referral.js'));
  const client=await readFile(new URL('../public/referral.js',import.meta.url),'utf8');
- for(const m of ['navigator.share','QRCode','ref=','pendingReferral']) assert.ok(client.includes(m),'client missing '+m);
+ for(const m of ['navigator.share','QRCode','ref=','aunomay_pending_ref']) assert.ok(client.includes(m),'client missing '+m);
 });
