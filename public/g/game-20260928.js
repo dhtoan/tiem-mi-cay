@@ -9,8 +9,9 @@
     <div class="scale" aria-label="Thang cay từ cấp 0 đến cấp 7">${A.map((e,a)=>`<span style="background:${e}">${a}</span>`).join("")}</div>
     <button class="big" id="goBtn">${o.day>1?"Vào bếp · ngày "+o.day:"Mở tiệm"}</button>
     <button class="ghost" id="howBtn">Cách chơi</button>
+    ${o.day<=1?'<button class="ghost" id="recvBtn" type="button">Đã có tiệm ở máy khác?</button>':""}
     <button class="byeb" id="byeBtn" type="button"><i aria-hidden="true"></i><span><b>Aunomay</b>Thông tin phát hành, bản quyền và hỗ trợ.</span></button>
-  </section>`,d("view").scrollTop=0;const n=()=>{xa()&&Je(!0),En(),M("bell"),Ie(),o.fx==="auto"&&Le()&&!o.fxTip&&(o.fxTip=!0,Q(),setTimeout(()=>k("Máy đang bật giảm chuyển động nên hiệu ứng đang tắt. Bật lại trong Cài đặt, mục Hiệu ứng chuyển động."),700)),o.onboarded?TA():ti(!0,()=>TA())};d("goBtn").onclick=()=>Za()?n():ni(n),d("howBtn").onclick=()=>ti(!1),d("byeBtn").onclick=Ya;const t=()=>{Ms()||Ya()};if(Gn){const e=Gn;Gn="",e==="tamper"?E("<h2>Bản lưu bị chỉnh sửa</h2><p>Dữ liệu lưu trên máy này đã bị sửa tay nên game không dùng được, quán mở lại từ đầu.</p><p>Nếu có mã sao lưu, vào Cài đặt và chọn Khôi phục từ mã.</p>",[["Đã hiểu",t,1]]):e==="refund"?E(`<h2>Quán giờ có cấp</h2><p>Món, trang bị và trang trí nay mở theo cấp quán. Những thứ bạn đã mua vượt cấp hiện tại được hoàn ${b(o.refund||0)} vào két, lên cấp là mua lại được.</p>`,[["Đã hiểu",t,1]]):t()}else t()}const Za=()=>(o.terms||0)>=ge,La=`<h3>1. Nhà phát hành</h3><p>Tiệm Mì Cay là game miễn phí do <b>Aunomay LLC</b> phát hành và vận hành.</p>
+  </section>`,d("view").scrollTop=0;const n=()=>{xa()&&Je(!0),En(),M("bell"),Ie(),o.fx==="auto"&&Le()&&!o.fxTip&&(o.fxTip=!0,Q(),setTimeout(()=>k("Máy đang bật giảm chuyển động nên hiệu ứng đang tắt. Bật lại trong Cài đặt, mục Hiệu ứng chuyển động."),700)),o.onboarded?TA():ti(!0,()=>TA())};d("goBtn").onclick=()=>Za()?n():ni(n),d("howBtn").onclick=()=>ti(!1),d("recvBtn")&&(d("recvBtn").onclick=()=>window.__aunomayTransferReceive&&window.__aunomayTransferReceive()),d("byeBtn").onclick=Ya;const t=()=>{Ms()||Ya()};if(Gn){const e=Gn;Gn="",e==="tamper"?E("<h2>Bản lưu bị chỉnh sửa</h2><p>Dữ liệu lưu trên máy này đã bị sửa tay nên game không dùng được, quán mở lại từ đầu.</p><p>Nếu có mã sao lưu, vào Cài đặt và chọn Khôi phục từ mã.</p>",[["Đã hiểu",t,1]]):e==="refund"?E(`<h2>Quán giờ có cấp</h2><p>Món, trang bị và trang trí nay mở theo cấp quán. Những thứ bạn đã mua vượt cấp hiện tại được hoàn ${b(o.refund||0)} vào két, lên cấp là mua lại được.</p>`,[["Đã hiểu",t,1]]):t()}else t()}const Za=()=>(o.terms||0)>=ge,La=`<h3>1. Nhà phát hành</h3><p>Tiệm Mì Cay là game miễn phí do <b>Aunomay LLC</b> phát hành và vận hành.</p>
 <h3>2. Độ tuổi</h3><p>Nếu dưới 16 tuổi, bạn cần được bố mẹ hoặc người giám hộ đồng ý trước khi chơi.</p>
 <h3>3. Cách chơi công bằng</h3><p>Không sửa dữ liệu lưu, can thiệp mã game, tự động hóa thao tác hoặc gửi thành tích giả lên bảng xếp hạng.</p>
 <h3>4. Lưu tiến trình</h3><p>Game luôn lưu tiến trình trên thiết bị. Nếu bạn tạo tài khoản và đăng nhập, game có thể tự động đồng bộ bản lưu lên cloud để tiếp tục trên thiết bị khác. Bạn vẫn có thể dùng mã sao lưu thủ công.</p>
@@ -81,43 +82,59 @@ function valid(v){v=norm(v);return v.length===8&&[...v].every(ch=>ABC.includes(c
 async function call(path,opt={}){try{const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});let j={};try{j=await r.json()}catch{}return{ok:r.ok,status:r.status,j}}catch{return{ok:false,status:0,j:{}}}}
 function localSave(){try{return localStorage.getItem(KEY)||''}catch{return''}}
 function busyGame(){return !!document.querySelector('.sell:not([hidden]), .chal:not([hidden]), [data-challenge="active"]')}
+function closeAccount(){const dlg=document.getElementById('cloudAccountDlg');if(dlg&&dlg.open)try{dlg.close()}catch{}}
+function closeModal(){const m=document.getElementById('modal');if(m)m.hidden=true}
+function modal(html){closeAccount();const m=document.getElementById('modal'),card=document.getElementById('card');if(!m||!card)return false;card.innerHTML=html;card.scrollTop=0;m.hidden=false;return true}
+function actions(primaryId,primaryText,secondaryId='tmCancel',secondaryText='Huỷ'){return '<div class="btns"><button class="pri" id="'+primaryId+'">'+primaryText+'</button><button id="'+secondaryId+'">'+secondaryText+'</button></div>'}
+function bindCancel(id='tmCancel'){const b=document.getElementById(id);if(b)b.onclick=closeModal}
+function blocked(verb){modal('<h2>Chưa thể '+verb+' tiệm</h2><p>Hãy đóng cửa hoặc kết thúc lượt đang chơi rồi thử lại.</p>'+actions('tmBlockedOk','Đã hiểu'));const b=document.getElementById('tmBlockedOk');if(b)b.onclick=closeModal}
 function panel(){
   const box=document.querySelector('#cloudAccountDlg .caBox');if(!box||document.getElementById('aunomayTransfer'))return;
-  const wrap=document.createElement('section');wrap.id='aunomayTransfer';wrap.setAttribute('data-aunomay-transfer-v1','');
-  wrap.style.cssText='margin-top:14px;padding-top:14px;border-top:1px solid #ead9df';
-  wrap.innerHTML='<h3 style="margin:0 0 5px;font-size:15px">Chuyển tiệm giữa thiết bị</h3><p style="margin:0 0 9px;font-size:12.5px;line-height:1.45;color:#715866">Không cần tài khoản. Tạo mã chuyển tiệm 8 ký tự, dùng được trong 24 giờ.</p><div style="display:flex;gap:7px;flex-wrap:wrap"><button id="tmCreateCode" class="caAlt" type="button">Chuyển sang máy khác</button><button id="tmReceiveCode" class="caAlt" type="button">Nhận tiệm từ máy khác</button></div><div id="tmTransferPane" hidden style="margin-top:10px"></div>';
+  const wrap=document.createElement('section');wrap.id='aunomayTransfer';wrap.className='caTransferCard';wrap.setAttribute('data-aunomay-transfer-v2','');
+  wrap.innerHTML='<div class="caTransferHead"><span class="caTransferIcon" aria-hidden="true">⇄</span><div><h3>Chuyển tiệm giữa thiết bị</h3><p>Không cần tài khoản. Dùng mã 8 ký tự để mang tiệm sang điện thoại hoặc trình duyệt khác.</p></div></div><div class="caTransferActions"><button id="tmCreateCode" class="caTransferAction" type="button"><b>Chuyển sang máy khác</b><small>Tạo mã từ tiệm đang chơi</small></button><button id="tmReceiveCode" class="caTransferAction" type="button"><b>Nhận tiệm từ máy khác</b><small>Nhập mã 8 ký tự ở máy cũ</small></button></div><div class="caTransferFoot">Mã tự hết hạn sau 24 giờ · Không gửi mã cho người lạ</div>';
   box.insertBefore(wrap,document.getElementById('caStatus')||null);
   document.getElementById('tmCreateCode').onclick=createCode;
   document.getElementById('tmReceiveCode').onclick=receiveForm;
 }
-function msg(html){const p=document.getElementById('tmTransferPane');if(!p)return;p.hidden=false;p.innerHTML=html}
 async function createCode(){
-  if(busyGame()){msg('<p style="color:#9f2d28">Hãy đóng cửa hoặc kết thúc lượt đang chơi rồi mới chuyển tiệm.</p>');return}
-  const s=localSave();if(!s){msg('<p style="color:#9f2d28">Chưa có tiến trình để chuyển.</p>');return}
-  msg('<p>Đang tạo mã chuyển tiệm…</p>');
+  if(busyGame())return blocked('chuyển');
+  const s=localSave();
+  if(!s){modal('<h2>Chưa có tiến trình</h2><p>Hãy mở tiệm và chơi ít nhất một lần trước khi tạo mã chuyển.</p>'+actions('tmNoSaveOk','Đã hiểu'));const b=document.getElementById('tmNoSaveOk');if(b)b.onclick=closeModal;return}
+  if(!modal('<h2>Chuyển sang máy khác</h2><p>Đang tạo mã chuyển tiệm…</p><p class="tmTransferNote">Mã chỉ dùng để chuyển tiến trình và tự hết hạn sau 24 giờ.</p>'+actions('tmCancelCreate','Huỷ')))return;
+  bindCancel('tmCancelCreate');
   const r=await call('/api/sync',{method:'POST',body:JSON.stringify({s})});
+  if(document.getElementById('modal')?.hidden)return;
   if(!r.ok||typeof r.j.code!=='string'){
     const t=r.status===413?'Tiệm quá lớn để tạo mã. Hãy dùng tài khoản Cloud Save.':r.status===429?'Bạn thao tác quá nhanh. Thử lại sau ít phút.':'Chưa tạo được mã. Kiểm tra mạng rồi thử lại.';
-    msg('<p style="color:#9f2d28">'+t+'</p>');return
+    modal('<h2>Chưa tạo được mã</h2><p>'+t+'</p>'+actions('tmRetryCreate','Thử lại','tmCancel','Đóng'));
+    const retry=document.getElementById('tmRetryCreate');if(retry)retry.onclick=createCode;bindCancel();return
   }
   const code=fmt(r.j.code);
-  msg('<div style="font:700 28px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:#5a2334;text-align:center;user-select:all">'+code+'</div><p style="font-size:12.5px">Mã dùng được trong 24 giờ. Trên máy mới mở Tiệm Mì Cay → Tài khoản → <b>Nhận tiệm từ máy khác</b>.</p><button id="tmCopyCode" class="caPrimary" type="button">Chép mã</button>');
-  const b=document.getElementById('tmCopyCode');if(b)b.onclick=async()=>{try{await navigator.clipboard.writeText(code);b.textContent='Đã chép ✓'}catch{b.textContent='Hãy ghi lại: '+code}}
+  modal('<h2>Mã chuyển tiệm</h2><p class="tmCodeDisplay">'+code+'</p><p>Ở thiết bị mới, mở Tiệm Mì Cay và bấm <b>Đã có tiệm ở máy khác?</b> ngay dưới Cách chơi.</p><p class="tmTransferNote">Mã dùng được trong 24 giờ. Chơi song song hai máy sẽ không tự gộp tiến trình.</p>'+actions('tmCopyCode','Chép mã','tmDone','Xong'));
+  const copy=document.getElementById('tmCopyCode');if(copy)copy.onclick=async()=>{try{await navigator.clipboard.writeText(code);copy.textContent='Đã chép ✓'}catch{copy.textContent='Ghi lại: '+code}};
+  const done=document.getElementById('tmDone');if(done)done.onclick=closeModal;
 }
 function receiveForm(){
-  if(busyGame()){msg('<p style="color:#9f2d28">Hãy đóng cửa hoặc kết thúc lượt đang chơi rồi mới nhận tiệm.</p>');return}
-  msg('<label for="tmCodeInput" style="font-size:12.5px;font-weight:700">Mã chuyển tiệm</label><input id="tmCodeInput" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="VD: K7QX-2M9P" style="width:100%;margin:6px 0 8px;padding:10px;border:1px solid #dcc7cf;border-radius:10px;font:700 20px ui-monospace,monospace;text-transform:uppercase"><button id="tmReceiveNow" class="caPrimary" type="button">Nhận tiệm</button><p id="tmReceiveStatus" style="font-size:12.5px"></p>');
-  document.getElementById('tmReceiveNow').onclick=receiveNow;setTimeout(()=>document.getElementById('tmCodeInput')?.focus(),30)
+  if(busyGame())return blocked('nhận');
+  if(!modal('<h2>Nhận tiệm từ máy khác</h2><p>Ở thiết bị đang có tiệm, chọn <b>Chuyển sang máy khác</b> để lấy mã 8 ký tự rồi nhập vào đây.</p><input id="tmCodeInput" class="tmScode" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-label="Mã chuyển tiệm" placeholder="VD: K7QX-2M9P"><p id="tmReceiveStatus" class="tmTransferStatus" aria-live="polite"></p>'+actions('tmReceiveNow','Nhận tiệm')))return;
+  const input=document.getElementById('tmCodeInput');
+  if(input){input.addEventListener('input',()=>{const p=input.selectionStart||0;input.value=fmt(input.value);try{input.setSelectionRange(Math.min(p+1,input.value.length),Math.min(p+1,input.value.length))}catch{}});setTimeout(()=>input.focus(),40)}
+  document.getElementById('tmReceiveNow').onclick=receiveNow;bindCancel();
 }
 async function receiveNow(){
   const input=document.getElementById('tmCodeInput'),st=document.getElementById('tmReceiveStatus');const code=norm(input?.value);
-  if(!valid(code)){st.textContent='Mã gồm 8 chữ và số, ví dụ K7QX-2M9P.';return}
-  st.textContent='Đang lấy tiệm…';const r=await call('/api/sync?code='+encodeURIComponent(code),{method:'GET',headers:{}});
-  if(!r.ok||typeof r.j.s!=='string'){st.textContent=r.status===404?'Mã không đúng hoặc đã quá 24 giờ.':r.status===400?'Mã không hợp lệ.':'Không kết nối được máy chủ.';return}
-  if(!r.j.s.startsWith('MC2|')){st.textContent='Bản lưu trong mã này không hợp lệ.';return}
-  if(!confirm('Nhận tiệm này? Tiến trình hiện tại trên thiết bị sẽ được thay thế.')){st.textContent='Đã hủy.';return}
-  try{localStorage.setItem(KEY,r.j.s);localStorage.setItem(TS,String(Date.now()))}catch{st.textContent='Trình duyệt không cho lưu tiến trình.';return}
-  location.reload()
+  if(!st)return;
+  if(!valid(code)){st.textContent='Mã gồm 8 chữ và số, ví dụ K7QX-2M9P.';st.classList.add('bad');return}
+  st.classList.remove('bad');st.textContent='Đang lấy tiệm…';
+  const r=await call('/api/sync?code='+encodeURIComponent(code),{method:'GET',headers:{}});
+  if(!r.ok||typeof r.j.s!=='string'){st.textContent=r.status===404?'Mã không đúng hoặc đã quá 24 giờ. Tạo mã mới ở máy cũ nhé.':r.status===429?'Thử nhiều lần quá, đợi vài phút nhé.':r.status===400?'Mã không hợp lệ.':'Không kết nối được máy chủ.';st.classList.add('bad');return}
+  if(!r.j.s.startsWith('MC2|')){st.textContent='Bản lưu trong mã này không hợp lệ.';st.classList.add('bad');return}
+  const save=r.j.s;
+  modal('<h2>Nhận tiệm này?</h2><p>Tiến trình hiện tại trên thiết bị sẽ được thay thế bằng tiệm từ mã <b>'+fmt(code)+'</b>.</p><p class="tmTransferNote">Nếu muốn giữ chắc bản hiện tại, hãy tạo Cloud Save hoặc mã sao lưu trước khi nhận.</p>'+actions('tmConfirmReceive','Nhận tiệm','tmCancel','Huỷ'));
+  document.getElementById('tmConfirmReceive').onclick=()=>{try{localStorage.setItem(KEY,save);localStorage.setItem(TS,String(Date.now()))}catch{modal('<h2>Không lưu được tiến trình</h2><p>Trình duyệt đang chặn lưu dữ liệu. Hãy kiểm tra cài đặt rồi thử lại.</p>'+actions('tmStorageOk','Đã hiểu'));const ok=document.getElementById('tmStorageOk');if(ok)ok.onclick=closeModal;return}location.reload()};
+  bindCancel();
 }
+window.__aunomayTransferReceive=receiveForm;
+window.__aunomayTransferCreate=createCode;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',panel,{once:true});else panel();
 })();
