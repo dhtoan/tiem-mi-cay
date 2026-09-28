@@ -49,7 +49,16 @@ if grep -q 'href="https://aenhatrang.com/report-tinh-nang"' "$TMP/report.html"; 
   echo "External report link must not be present"
   exit 1
 fi
-grep -q 'renderLatest' "$TMP/report.html"
+grep -q '/report-tinh-nang/latest-frame' "$TMP/report.html"
+FRAME_CODE="$(curl -sS -o "$TMP/latest-frame.html" -D "$TMP/latest-frame.headers" -w '%{http_code}' "$BASE/report-tinh-nang/latest-frame")"
+if [ "$FRAME_CODE" = "200" ]; then
+  grep -qi "script-src 'none'" "$TMP/latest-frame.headers"
+  grep -qi "frame-ancestors 'self'" "$TMP/latest-frame.headers"
+  if grep -qi '<script' "$TMP/latest-frame.html"; then
+    echo "Mirror must strip source scripts"
+    exit 1
+  fi
+fi
 
 echo "[3/8] register"
 REG_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2],displayName:"CI Test"}))' "$SMOKE_USER" "$SMOKE_PASS")"
