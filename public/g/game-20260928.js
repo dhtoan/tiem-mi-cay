@@ -116,7 +116,7 @@ async function createCode(){
 }
 function receiveForm(){
   if(busyGame())return blocked('nhận');
-  if(!modal('<h2>Nhận tiệm từ máy khác</h2><p>Ở thiết bị đang có tiệm, chọn <b>Chuyển sang máy khác</b> để lấy mã 8 ký tự rồi nhập vào đây.</p><input id="tmCodeInput" class="tmScode" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-label="Mã chuyển tiệm" placeholder="VD: K7QX-2M9P"><p id="tmReceiveStatus" class="tmTransferStatus" aria-live="polite"></p>'+actions('tmReceiveNow','Nhận tiệm')))return;
+  if(!modal('<h2>Nhận tiệm từ máy khác</h2><p>Ở thiết bị đang có tiệm, chọn <b>Chuyển sang máy khác</b> để lấy mã 8 ký tự rồi nhập vào đây.</p><input id="tmCodeInput" class="tmScode" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-label="Mã chuyển tiệm" placeholder="VD: K7QX-2M9P"><p id="tmReceiveStatus" class="tmTransferStatus" aria-live="polite"></p><div class="btns"><button class="pri" id="tmReceiveNow">Nhận tiệm</button><button id="tmCancel">Huỷ</button></div>'))return;
   const input=document.getElementById('tmCodeInput');
   if(input){input.addEventListener('input',()=>{const p=input.selectionStart||0;input.value=fmt(input.value);try{input.setSelectionRange(Math.min(p+1,input.value.length),Math.min(p+1,input.value.length))}catch{}});setTimeout(()=>input.focus(),40)}
   document.getElementById('tmReceiveNow').onclick=receiveNow;bindCancel();
