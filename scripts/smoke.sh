@@ -89,6 +89,22 @@ curl -fsS "$BASE/api/lb?id=$PID" >/dev/null
 curl -fsS "$BASE/api/chal?id=$PID" >/dev/null
 curl -fsS "$BASE/api/prank?id=$PID" >/dev/null
 
+echo "[7b/8] referral rewards"
+REFME="$(curl -fsS -b "$COOKIE" "$BASE/api/referral/me")"
+REFCODE="$(printf '%s' "$REFME" | json_field code)"
+test -n "$REFCODE"
+COOKIE2="$TMP/cookies2.txt"
+USER2="ci_ref_$(date +%s)_$RANDOM"
+REG2_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2],displayName:"CI Referral"}))' "$USER2" "$SMOKE_PASS")"
+curl -fsS -c "$COOKIE2" -H 'content-type: application/json' --data-binary "$REG2_PAYLOAD" "$BASE/api/auth/register" >/dev/null
+CLAIM_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({code:process.argv[1]}))' "$REFCODE")"
+CLAIM="$(curl -fsS -b "$COOKIE2" -H 'content-type: application/json' --data-binary "$CLAIM_PAYLOAD" "$BASE/api/referral/claim")"
+test "$(printf '%s' "$CLAIM" | json_field reward)" = "300000"
+R2="$(curl -fsS -b "$COOKIE2" -H 'content-type: application/json' --data-binary '{}' "$BASE/api/referral/rewards/take")"
+test "$(printf '%s' "$R2" | json_field amount)" = "300000"
+R1="$(curl -fsS -b "$COOKIE" -H 'content-type: application/json' --data-binary '{}' "$BASE/api/referral/rewards/take")"
+test "$(printf '%s' "$R1" | json_field amount)" = "300000"
+
 echo "[8/8] logout"
 OUT="$(curl -fsS -b "$COOKIE" -c "$COOKIE" -H 'content-type: application/json' --data-binary '{}' "$BASE/api/auth/logout")"
 test "$(printf '%s' "$OUT" | json_field ok)" = "true"
