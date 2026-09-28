@@ -8,6 +8,7 @@ const APP_VERSION = '2026.09.28-report2';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+const REFERRAL_REWARD = 300000;
 const PBKDF2_ITER = 120000;
 const SAVE_MAX_BYTES = 180 * 1024;
 const DEFAULT_ALLOWED_HOSTS = new Set(['tiem-mi-cay.aunomay.workers.dev']);
@@ -157,6 +158,9 @@ async function routeApi(request, env, url) {
   if (path === '/api/auth/login') return authLogin(request, env, url);
   if (path === '/api/auth/logout') return authLogout(request, env, url);
   if (path === '/api/auth/me') return authMe(request, env);
+  if (path === '/api/referral/me') return referralMe(request, env, url);
+  if (path === '/api/referral/claim') return referralClaim(request, env, url);
+  if (path === '/api/referral/rewards/take') return referralTakeRewards(request, env, url);
   if (path === '/api/save') return cloudSave(request, env, url);
   if (path === '/api/ai') return aiReply(request, env);
   return json({ error: 'Không tìm thấy API.' }, 404);
@@ -879,6 +883,75 @@ async function authMe(request, env) {
   const user = await sessionUser(env.DB, request);
   if (!user) return json({ ok: true, authenticated: false, user: null });
   return json({ ok: true, authenticated: true, user: publicUser(user) });
+}
+
+async function referralMe(request, env, url) {
+  await ensureAuthSchema(env.DB);
+  if (request.method !== 'GET') return methodNotAllowed('GET');
+  const user = await sessionUser(env.DB, request);
+  if (!user) return json({ error: 'Chưa đăng nhập.' }, 401);
+  const code = await ensureReferralCode(env.DB, user.id);
+  return json({ ok: true, code, link: url.origin + '/?ref=' + encodeURIComponent(code), reward: REFERRAL_REWARD });
+}
+
+async function referralClaim(request, env, url) {
+  await ensureAuthSchema(env.DB);
+  if (request.method !== 'POST') return methodNotAllowed('POST');
+  if (!sameOrigin(request, url)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
+  const user = await sessionUser(env.DB, request);
+  if (!user) return json({ error: 'Chưa đăng nhập.' }, 401);
+  const b = await bodyJson(request);
+  if (!b) return json({ error: 'Dữ liệu không hợp lệ.' }, 400);
+  const code = String(b.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+  if (code.length < 6) return json({ error: 'Mã giới thiệu không hợp lệ.' }, 400);
+  const inviter = await env.DB.prepare('SELECT account_id FROM referral_codes WHERE code=?').bind(code).first();
+  if (!inviter) return json({ error: 'Không tìm thấy mã giới thiệu.' }, 404);
+  if (inviter.account_id === user.id) return json({ error: 'Bạn không thể tự giới thiệu chính mình.' }, 400);
+  const old = await env.DB.prepare('SELECT inviter_account_id FROM referral_claims WHERE invitee_account_id=?').bind(user.id).first();
+  if (old) return json({ error: 'Tài khoản này đã nhận thưởng giới thiệu.', alreadyClaimed: true }, 409);
+  const now = Date.now();
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO referral_claims(invitee_account_id,inviter_account_id,created_at) VALUES(?,?,?)').bind(user.id, inviter.account_id, now),
+      env.DB.prepare(`INSERT INTO referral_rewards(account_id,pending_amount,total_amount,updated_at) VALUES(?,?,?,?)
+        ON CONFLICT(account_id) DO UPDATE SET pending_amount=pending_amount+excluded.pending_amount,total_amount=total_amount+excluded.total_amount,updated_at=excluded.updated_at`).bind(user.id, REFERRAL_REWARD, REFERRAL_REWARD, now),
+      env.DB.prepare(`INSERT INTO referral_rewards(account_id,pending_amount,total_amount,updated_at) VALUES(?,?,?,?)
+        ON CONFLICT(account_id) DO UPDATE SET pending_amount=pending_amount+excluded.pending_amount,total_amount=total_amount+excluded.total_amount,updated_at=excluded.updated_at`).bind(inviter.account_id, REFERRAL_REWARD, REFERRAL_REWARD, now),
+    ]);
+  } catch (error) {
+    if (String(error).toLowerCase().includes('unique')) return json({ error: 'Tài khoản này đã nhận thưởng giới thiệu.', alreadyClaimed: true }, 409);
+    throw error;
+  }
+  return json({ ok: true, reward: REFERRAL_REWARD });
+}
+
+async function referralTakeRewards(request, env, url) {
+  await ensureAuthSchema(env.DB);
+  if (request.method !== 'POST') return methodNotAllowed('POST');
+  if (!sameOrigin(request, url)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
+  const user = await sessionUser(env.DB, request);
+  if (!user) return json({ error: 'Chưa đăng nhập.' }, 401);
+  const row = await env.DB.prepare('SELECT pending_amount,total_amount FROM referral_rewards WHERE account_id=?').bind(user.id).first();
+  const amount = Math.max(0, Number(row?.pending_amount || 0));
+  if (amount > 0) await env.DB.prepare('UPDATE referral_rewards SET pending_amount=0,updated_at=? WHERE account_id=?').bind(Date.now(), user.id).run();
+  return json({ ok: true, amount, total: Number(row?.total_amount || 0) });
+}
+
+async function ensureReferralCode(db, accountId) {
+  const old = await db.prepare('SELECT code FROM referral_codes WHERE account_id=?').bind(accountId).first();
+  if (old?.code) return old.code;
+  const digest = (await sha256Hex('aunomay-ref:' + accountId)).toUpperCase();
+  for (const len of [8, 10, 12, 16]) {
+    const code = digest.slice(0, len);
+    try {
+      await db.prepare('INSERT INTO referral_codes(code,account_id,created_at) VALUES(?,?,?)').bind(code, accountId, Date.now()).run();
+      return code;
+    } catch (error) {
+      const row = await db.prepare('SELECT account_id FROM referral_codes WHERE code=?').bind(code).first();
+      if (row?.account_id === accountId) return code;
+    }
+  }
+  throw new Error('Could not allocate referral code');
 }
 
 async function cloudSave(request, env, url) {
