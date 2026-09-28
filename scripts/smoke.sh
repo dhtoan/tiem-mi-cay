@@ -17,7 +17,7 @@ HEALTH="$(curl -fsS "$BASE/api/health")"
 test "$(printf '%s' "$HEALTH" | json_field ok)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field db)" = "true"
 test "$(printf '%s' "$HEALTH" | json_field authSchema)" = "true"
-test "$(printf '%s' "$HEALTH" | json_field version)" = "2026.09.28-report1"
+test "$(printf '%s' "$HEALTH" | json_field version)" = "2026.09.28-report2"
 
 echo "[2/8] public game"
 curl -fsS "$BASE/" -o "$TMP/index.html"
@@ -42,6 +42,14 @@ echo "[2e/8] feature report page"
 curl -fsS "$BASE/report-tinh-nang" -o "$TMP/report.html"
 grep -q 'Báo cáo tính năng' "$TMP/report.html"
 grep -q '/api/report-features' "$TMP/report.html"
+
+echo "[2f/8] latest report tab"
+grep -q 'Nội dung mới nhất' "$TMP/report.html"
+if grep -q 'href="https://aenhatrang.com/report-tinh-nang"' "$TMP/report.html"; then
+  echo "External report link must not be present"
+  exit 1
+fi
+grep -q 'renderLatest' "$TMP/report.html"
 
 echo "[3/8] register"
 REG_PAYLOAD="$(node -e 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2],displayName:"CI Test"}))' "$SMOKE_USER" "$SMOKE_PASS")"
