@@ -29,6 +29,7 @@ const REPORT_LOCAL_FEATURES = [
   { name: 'Vòng thời gian quanh khách', aliases: ['vòng thời gian quanh khách'] },
   { name: 'Loa hỏng không làm hỏng game', aliases: ['loa hỏng'] },
   { name: 'Bản web đã làm rối mã', aliases: ['bản web đã làm rối mã', 'ios 12'] },
+  { name: 'Chuyển tiệm bằng mã 8 ký tự', aliases: ['chuyển sang máy khác', 'nhận tiệm từ máy khác', 'mã chuyển tiệm', 'mã 8 ký tự'] },
 ];
 const REPORT_AUNOMAY_ONLY = [
   { name: 'Tài khoản Aunomay', description: 'Đăng ký, đăng nhập và phiên tài khoản trên Cloudflare D1.' },
