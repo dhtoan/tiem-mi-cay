@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/worker.js && node --check public/g/game-20260928.js",
+    "check": "node --check src/worker.js && node --check public/g/game-20260928.js && node --test tests/report-ui.test.mjs",
     "build": "node scripts/build.mjs",
     "dev": "npm run build && wrangler dev --local",
     "db:local": "wrangler d1 migrations apply DB --local",
