@@ -4,13 +4,16 @@ const CHAL_DURATION_MS = 30 * 60 * 1000;
 const PRANK_KINDS = new Set(['rat', 'drunk', 'sidewalk', 'mac', 'tour', 'celeb']);
 const ID_RE = /^[a-z0-9]{8,24}$/;
 const CLIENT_KEYS = ['mc!7Ay#q', 't0m~yum*'];
-const APP_VERSION = '2026.09.28-report2';
+const APP_VERSION = '2026.09.28-sync1';
 const AUTH_COOKIE = 'micay_session';
 const USER_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$/u;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const REFERRAL_REWARD = 300000;
 const PBKDF2_ITER = 120000;
 const SAVE_MAX_BYTES = 180 * 1024;
+const SYNC_CODE_TTL_MS = 24 * 60 * 60 * 1000;
+const SYNC_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const SYNC_PAYLOAD_MAX_BYTES = 220 * 1024;
 const DEFAULT_ALLOWED_HOSTS = new Set(['tiem-mi-cay.aunomay.workers.dev']);
 const REPORT_SOURCE_URL = 'https://aenhatrang.com/report-tinh-nang';
 const REPORT_CACHE_MS = 10 * 60 * 1000;
@@ -148,9 +151,11 @@ function reportMirrorHeaders() {
 async function routeApi(request, env, url) {
   const path = url.pathname.replace(/\/+$/, '');
   if (path === '/api/err') return clientErrorReport(request);
+  if (path === '/api/copy') return copyAttemptReport(request);
   if (path === '/api/report-features') return reportFeatures(request, env);
   if (!env.DB) return json({ error: 'Database chưa được cấu hình.' }, 503);
   if (path === '/api/health') return healthCheck(env);
+  if (path === '/api/sync') return syncTransfer(request, env, url);
   if (path === '/api/lb') return leaderboard(request, env, url);
   if (path === '/api/chal') return challenge(request, env, url);
   if (path === '/api/prank') return prank(request, env, url);
@@ -390,6 +395,75 @@ async function clientErrorReport(request) {
       message: cleanText(b.m, 200),
       stack: cleanText(b.s, 400),
       userAgent: cleanText(b.ua, 180),
+    });
+  }
+  return new Response(null, { status: 204 });
+}
+
+async function syncTransfer(request, env, url) {
+  const now = Date.now();
+  await env.DB.prepare('DELETE FROM sync_codes WHERE expires_at <= ?').bind(now).run();
+
+  if (request.method === 'POST') {
+    const body = await bodyJson(request);
+    const payload = body && typeof body.s === 'string' ? body.s : '';
+    if (!payload) return json({ error: 'Thiếu dữ liệu chuyển tiệm.' }, 400);
+    if (new TextEncoder().encode(payload).byteLength > SYNC_PAYLOAD_MAX_BYTES) {
+      return json({ error: 'Bản lưu quá lớn để tạo mã chuyển.' }, 413);
+    }
+
+    let code = '';
+    for (let attempt = 0; attempt < 8; attempt++) {
+      code = randomSyncCode();
+      try {
+        await env.DB.prepare(
+          'INSERT INTO sync_codes(code,payload,created_at,expires_at) VALUES(?,?,?,?)'
+        ).bind(code, payload, now, now + SYNC_CODE_TTL_MS).run();
+        return json({ code, expiresAt: now + SYNC_CODE_TTL_MS }, 201);
+      } catch (error) {
+        if (!String(error).toLowerCase().includes('unique')) throw error;
+      }
+    }
+    return json({ error: 'Chưa tạo được mã chuyển tiệm, thử lại.' }, 503);
+  }
+
+  if (request.method === 'GET') {
+    const code = normalizeSyncCode(url.searchParams.get('code'));
+    if (!code) return json({ error: 'Mã chuyển tiệm không hợp lệ.' }, 400);
+    const row = await env.DB.prepare(
+      'SELECT payload, expires_at FROM sync_codes WHERE code=? AND expires_at>?'
+    ).bind(code, now).first();
+    if (!row) return json({ error: 'Mã không đúng hoặc đã hết hạn.' }, 404);
+    return json({ s: row.payload, expiresAt: Number(row.expires_at || 0) });
+  }
+
+  return methodNotAllowed('GET, POST');
+}
+
+function normalizeSyncCode(value) {
+  const code = String(value || '').toUpperCase().replace(/[\s\-._]+/g, '');
+  if (code.length !== 8) return '';
+  for (const ch of code) if (!SYNC_CODE_ALPHABET.includes(ch)) return '';
+  return code;
+}
+
+function randomSyncCode() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) out += SYNC_CODE_ALPHABET[bytes[i] & 31];
+  return out;
+}
+
+async function copyAttemptReport(request) {
+  if (request.method !== 'POST') return methodNotAllowed('POST');
+  const body = await bodyJson(request);
+  if (body) {
+    console.warn('Blocked copied-game load', {
+      host: cleanText(body.h, 120),
+      top: cleanText(body.top, 120),
+      referrer: cleanText(body.ref, 200),
+      framed: Number(body.f || 0) ? 1 : 0,
     });
   }
   return new Response(null, { status: 204 });
